@@ -42,7 +42,6 @@ recognition.onresult = async (event) => {
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
     console.log("%c👂 ESCUCHADO: " + text, "color: #7f8c8d; font-style: italic;");
 
-    // Ajustado para responder a "José"
     if (text.includes("josé") || text.includes("jose")) {
         console.log("%c🔔 LLAMADA DETECTADA: " + text, "color: #f1c40f; font-weight: bold;");
         const comandoLimpio = text.replace(/josé|jose/g, "").trim();
@@ -54,7 +53,7 @@ recognition.onresult = async (event) => {
 
 recognition.onend = () => { if (sistemaIniciado && !iaHablando) try { recognition.start(); } catch (e) {} };
 
-// 5. CEREBRO DE JOSÉ
+// 5. CEREBRO DE JOSÉ (RESTAURADO)
 async function consultarIA(frase, contextoActual) {
     try {
         const response = await fetch(API_URL, {
@@ -67,8 +66,8 @@ async function consultarIA(frase, contextoActual) {
                         role: "system",
                         content: `Eres José, asistente amable y experto. 
                         REGLAS:
-                        1. Sé breve (máximo 2 frases).
-                        2. Si saludan: Acción SALUDO.
+                        1. Sé muy breve (máximo 2 frases). 
+                        2. Si saludan o preguntan "¿Cómo estás?": Acción SALUDO.
                         3. Si piden LEER: Acción LEER.
                         4. Si preguntan "¿Qué es?", "Explícame", o "Por qué": Acción EXPLICAR.
                         5. Navegación: IR_A_0 (inicio), SIGUIENTE, ATRAS.
@@ -85,18 +84,20 @@ async function consultarIA(frase, contextoActual) {
     } catch (e) { return "ACCION: NADA\nVOZ: Error de conexión."; }
 }
 
-// 6. CONTROLADOR DE ACCIONES
+// 6. CONTROLADOR DE ACCIONES (LÓGICA HÍBRIDA RESTAURADA)
 function procesarAccion(rawResponse, textoEscuchado) {
     const accionMatch = rawResponse.match(/ACCION:\s*([\w_]+)/i);
     const vozMatch = rawResponse.match(/VOZ:\s*(.*)/is);
     let accion = accionMatch ? accionMatch[1].trim().toUpperCase() : "NADA";
     let voz = vozMatch ? vozMatch[1].trim() : "";
 
+    // Blindaje de intención: detectamos si es pregunta o lectura
     const esPreguntaAbierta = textoEscuchado.includes("explica") || textoEscuchado.includes("qué es") || textoEscuchado.includes("que es");
-    
+    const esLectura = textoEscuchado.includes("leer") || textoEscuchado.includes("lea");
+
     if (esPreguntaAbierta) {
         accion = "EXPLICAR";
-    } else if (textoEscuchado.includes("leer") || textoEscuchado.includes("lea")) {
+    } else if (esLectura) {
         accion = "LEER";
     }
 
@@ -113,8 +114,9 @@ function procesarAccion(rawResponse, textoEscuchado) {
         const textoReal = document.querySelector('.reveal .present').innerText;
         console.log("%c📖 LEYENDO DIAPOSITIVA ACTUAL...", "color: #2ecc71; font-weight: bold;");
         voz = "En esta diapositiva dice: " + textoReal; 
-    } else if (accion === "EXPLICAR") {
-        console.log("%c🧠 GENERANDO EXPLICACIÓN CORTA...", "color: #f39c12; font-weight: bold;");
+    } else if (accion === "EXPLICAR" || accion === "SALUDO") {
+        if (accion === "EXPLICAR") console.log("%c🧠 GENERANDO EXPLICACIÓN...", "color: #f39c12; font-weight: bold;");
+        // Se usa la voz generada por la IA para explicar o saludar
     }
     
     if (voz) responderConVoz(voz);
