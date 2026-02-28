@@ -12,13 +12,14 @@ if (!API_KEY_GROQ) {
 
 let iaHablando = false;
 let sistemaIniciado = false;
+let mapaDiapositivas = ""; // Aquí guardaremos los títulos de tus slides
 
-// --- NUEVO: BOTONES DE NAVEGACIÓN (RESPALDO) ---
+// --- BOTONES DE RESPALDO ---
 const contenedorBotones = document.createElement('div');
 contenedorBotones.style = "position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; gap: 10px;";
 contenedorBotones.innerHTML = `
-    <button id="btn-prev" style="padding: 10px 20px; cursor: pointer; border-radius: 5px; border: none; background: #333; color: white;">⬅️ Atrás</button>
-    <button id="btn-next" style="padding: 10px 20px; cursor: pointer; border-radius: 5px; border: none; background: #333; color: white;">Siguiente ➡️</button>
+    <button id="btn-prev" style="padding: 10px 20px; cursor: pointer; border-radius: 5px; border: none; background: #333; color: white; font-weight: bold;">⬅️ ATRÁS</button>
+    <button id="btn-next" style="padding: 10px 20px; cursor: pointer; border-radius: 5px; border: none; background: #333; color: white; font-weight: bold;">SIGUIENTE ➡️</button>
 `;
 document.body.appendChild(contenedorBotones);
 
@@ -32,7 +33,7 @@ recognition.continuous = true;
 
 recognition.onend = () => {
     if (sistemaIniciado && !iaHablando) {
-        try { recognition.start(); } catch (e) { console.log("Esperando micro..."); }
+        try { recognition.start(); } catch (e) {}
     }
 };
 
@@ -42,24 +43,15 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.cancel();
     const lectura = new SpeechSynthesisUtterance(mensaje);
     lectura.lang = 'es-ES';
-    
-    lectura.onstart = () => {
-        iaHablando = true;
-        recognition.stop(); 
-    };
-    
+    lectura.onstart = () => { iaHablando = true; recognition.stop(); };
     lectura.onend = () => {
         iaHablando = false;
-        setTimeout(() => {
-            if (sistemaIniciado) {
-                try { recognition.start(); } catch (e) {}
-            }
-        }, 700);
+        setTimeout(() => { if (sistemaIniciado) try { recognition.start(); } catch (e) {} }, 700);
     };
     window.speechSynthesis.speak(lectura);
 }
 
-// 4. LÓGICA DE ESCUCHA CON FILTRO "ROBIN"
+// 4. LÓGICA DE ESCUCHA
 recognition.onresult = async (event) => {
     if (iaHablando) return;
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
@@ -69,17 +61,18 @@ recognition.onresult = async (event) => {
         const comandoLimpio = text.replace(/robin|robín|rubín|rubén/g, "").trim();
         
         if (comandoLimpio.length < 2) {
-            responderConVoz("¿Dime? Estoy escuchándote.");
+            responderConVoz("¿Dime?");
             return;
         }
-        const contenidoSlide = document.querySelector('.reveal .present').innerText || "";
-        const respuestaIA = await consultarIA(comandoLimpio, contenidoSlide);
+
+        const slideActual = document.querySelector('.reveal .present').innerText || "";
+        const respuestaIA = await consultarIA(comandoLimpio, slideActual);
         procesarAccion(respuestaIA);
     }
 };
 
-// 5. CONEXIÓN CON GROQ (MODO CONVERSACIONAL)
-async function consultarIA(frase, contexto) {
+// 5. CEREBRO CON MAPA DE DIAPOSITIVAS
+async function consultarIA(frase, contextoActual) {
     try {
         const response = await fetch(API_URL, {
             method: "POST",
@@ -92,51 +85,61 @@ async function consultarIA(frase, contexto) {
                 messages: [
                     {
                         role: "system",
-                        content: `Eres Robin, un asistente conversacional y controlador de diapositivas.
-                        1. Si el usuario pide ir atrás, volver o anterior: responde SOLO "ATRAS".
-                        2. Si el usuario pide siguiente o avanzar: responde SOLO "SIGUIENTE".
-                        3. Si el usuario pide el inicio: responde SOLO "INICIO".
-                        4. Para todo lo demás (saludos, preguntas, charla): responde de forma natural, amistosa y breve (máx 30 palabras). 
-                        Usa este contexto de la diapositiva si te preguntan algo técnico: ${contexto}`
+                        content: `Eres Robin. Controlas esta presentación que tiene estos temas:
+                        ${mapaDiapositivas}
+                        
+                        REGLAS DE NAVEGACIÓN:
+                        1. Si piden ir a un tema específico (ej: conclusiones): responde "IR_A_X" (donde X es el número de esa slide).
+                        2. Si piden siguiente/avanzar: responde "SIGUIENTE".
+                        3. Si piden atrás/volver: responde "ATRAS".
+                        4. Para conversar o preguntas sobre "${contextoActual}": responde breve y amable (máx 25 palabras).`
                     },
                     { role: "user", content: frase }
                 ],
-                temperature: 0.7 // Aumentamos para que pueda conversar
+                temperature: 0.5
             })
         });
         const data = await response.json();
         return data.choices[0].message.content.trim();
-    } catch (e) {
-        return "ERROR";
-    }
+    } catch (e) { return "ERROR"; }
 }
 
-// 6. CONTROLADOR DE ACCIONES
+// 6. CONTROLADOR DE ACCIONES MEJORADO
 function procesarAccion(res) {
-    const resUpper = res.toUpperCase();
     console.log("🤖 Robin decidió:", res);
-    
-    // Si la respuesta es un comando puro
-    if (resUpper === "SIGUIENTE") {
+    const resUpper = res.toUpperCase();
+
+    if (resUpper.startsWith("IR_A_")) {
+        const numSlide = parseInt(resUpper.replace("IR_A_", ""));
+        if (!isNaN(numSlide)) {
+            Reveal.slide(numSlide);
+            responderConVoz("Entendido, saltamos a esa diapositiva.");
+            return;
+        }
+    }
+
+    if (resUpper.includes("SIGUIENTE")) {
         Reveal.next();
-        responderConVoz("Cambiando diapositiva.");
-    } else if (resUpper === "ATRAS") {
+        responderConVoz("Siguiente.");
+    } else if (resUpper.includes("ATRAS")) {
         Reveal.prev();
-        responderConVoz("Regresando.");
-    } else if (resUpper === "INICIO") {
-        Reveal.slide(0);
-        responderConVoz("Vamos al comienzo.");
-    } else {
-        // Si no es comando, es conversación pura
+        responderConVoz("Atrás.");
+    } else if (res !== "ERROR") {
         responderConVoz(res);
     }
 }
 
-// 7. ACTIVACIÓN
+// 7. ESCANEO DE DIAPOSITIVAS Y ACTIVACIÓN
+function generarMapa() {
+    const slides = document.querySelectorAll('.reveal .slides section');
+    mapaDiapositivas = Array.from(slides).map((s, i) => `Slide ${i}: ${s.innerText.substring(0, 50)}`).join('\n');
+}
+
 document.body.onclick = () => {
     if (!sistemaIniciado) {
+        generarMapa(); // Escanea los títulos antes de empezar
         sistemaIniciado = true;
-        responderConVoz("Sistema activo. Puedes hablar conmigo o usar los botones de la pantalla.");
+        responderConVoz("Hola Carlos, ya conozco tus diapositivas. ¿A cuál quieres ir?");
     }
 };
 
