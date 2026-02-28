@@ -21,11 +21,10 @@ estilos.innerHTML = `
         transition: 0.3s;
     }
     .btn-robin:hover { background: #333; border-color: #666; }
-    .btn-reset { background: #441111; }
 `;
 document.head.appendChild(estilos);
 
-// 2. CREACIÓN DE BOTONES
+// 2. CREACIÓN DE BOTONES (SIN BOTÓN DE RESET)
 const panel = document.createElement('div');
 panel.className = 'controles-robin';
 panel.innerHTML = `
@@ -79,7 +78,6 @@ recognition.onresult = async (event) => {
     console.log("👂 Escuchado:", text);
     
     if (/robin|robín|rubín|rubén/.test(text)) {
-        // Atajos directos sin API (Ahorra tokens)
         if (text.includes("siguiente") || text.includes("adelante")) return procesarAccion("SIGUIENTE");
         if (text.includes("atrás") || text.includes("volver")) return procesarAccion("ATRAS");
         if (text.includes("inicio")) return procesarAccion("INICIO");
@@ -105,7 +103,7 @@ async function consultarIA(frase, contexto) {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                model: "llama3-8b-8192", // Cambiado a modelo ligero para evitar el 401
+                model: "llama3-8b-8192", 
                 messages: [
                     {
                         role: "system",
