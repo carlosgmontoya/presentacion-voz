@@ -1,113 +1,128 @@
-// 1. ESTILOS (MODO OSCURO Y BOTONES)
-const estilos = document.createElement('style');
-estilos.innerHTML = `
-    .controles-robin {
-        position: fixed; bottom: 20px; right: 20px;
-        display: flex; gap: 10px; z-index: 9999;
-    }
-    .btn-robin {
-        background: #222; color: white; border: 1px solid #444;
-        padding: 10px 15px; border-radius: 8px; cursor: pointer;
-        font-family: sans-serif; font-size: 18px; transition: 0.3s;
-    }
-    .btn-robin:hover { background: #333; border-color: #666; }
-`;
-document.head.appendChild(estilos);
-
-// 2. INTERFAZ LIMPIA (SIN RESET KEY)
-const panel = document.createElement('div');
-panel.className = 'controles-robin';
-panel.innerHTML = `
-    <button class="btn-robin" onclick="procesarAccion('ATRAS')">⬅️</button>
-    <button class="btn-robin" onclick="procesarAccion('INICIO')">🏠</button>
-    <button class="btn-robin" onclick="procesarAccion('SIGUIENTE')">➡️</button>
-`;
-document.body.appendChild(panel);
-
-// 3. CONFIGURACIÓN Y LLAVE
+// 1. CONFIGURACIÓN GROQ
+const API_KEY_GROQ = localStorage.getItem('GROQ_KEY');
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
-let API_KEY_GROQ = localStorage.getItem('GROQ_KEY');
 
 if (!API_KEY_GROQ) {
-    API_KEY_GROQ = prompt("Introduce tu API KEY de Groq:");
-    if (API_KEY_GROQ) localStorage.setItem('GROQ_KEY', API_KEY_GROQ);
+    const userKey = prompt("Introduce tu API KEY de Groq:");
+    if (userKey) {
+        localStorage.setItem('GROQ_KEY', userKey);
+        location.reload();
+    }
 }
 
 let iaHablando = false;
 let sistemaIniciado = false;
 
-// 4. RECONOCIMIENTO DE VOZ
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const recognition = new SpeechRecognition();
+// 2. RECONOCIMIENTO DE VOZ (STT)
+const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 recognition.lang = 'es-ES';
 recognition.continuous = true;
 
-recognition.onend = () => { if (sistemaIniciado && !iaHablando) try { recognition.start(); } catch(e){} };
+recognition.onend = () => {
+    if (sistemaIniciado && !iaHablando) {
+        try { recognition.start(); } catch (e) { console.log("Esperando micro..."); }
+    }
+};
 
+// 3. SALIDA DE VOZ (TTS)
 function responderConVoz(mensaje) {
     window.speechSynthesis.cancel();
     const lectura = new SpeechSynthesisUtterance(mensaje);
     lectura.lang = 'es-ES';
-    lectura.onstart = () => { iaHablando = true; recognition.stop(); };
-    lectura.onend = () => { iaHablando = false; setTimeout(() => { if(sistemaIniciado) recognition.start(); }, 600); };
+    lectura.onstart = () => {
+        iaHablando = true;
+        recognition.stop(); 
+    };
+    lectura.onend = () => {
+        iaHablando = false;
+        setTimeout(() => {
+            if (sistemaIniciado) {
+                try { recognition.start(); } catch (e) {}
+            }
+        }, 700);
+    };
     window.speechSynthesis.speak(lectura);
 }
 
-// 5. LÓGICA DE INTERPRETACIÓN (CON MODELO NUEVO)
+// 4. LÓGICA DE ESCUCHA CON FILTRO ESTRICTO "ROBIN"
 recognition.onresult = async (event) => {
+    if (iaHablando) return;
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
-    console.log("👂 Escuchado:", text);
     
-    if (/robin|robín|rubín|rubén/.test(text)) {
-        // ATAJOS LOCALES (No gastan API y funcionan siempre)
-        if (text.includes("siguiente") || text.includes("pasa")) return procesarAccion("SIGUIENTE");
-        if (text.includes("atrás") || text.includes("vuelve")) return procesarAccion("ATRAS");
-        if (text.includes("inicio") || text.includes("principio")) return procesarAccion("INICIO");
-
-        const comando = text.replace(/robin|robín|rubín|rubén/g, "").trim();
-        const slideActual = document.querySelector('.reveal .present');
-        const contextoLimpio = (slideActual?.innerText || "").replace(/[\n\r\t]/g, " ").substring(0, 600);
+    if (text.includes("robin") || text.includes("robín") || text.includes("rubín") || text.includes("rubén")) {
+        console.log("🔔 ROBIN ACTIVADO. Instrucción recibida:", text);
+        const comandoLimpio = text.replace(/robin|robín|rubín|rubén/g, "").trim();
         
-        const respuestaIA = await consultarIA(comando, contextoLimpio);
+        if (comandoLimpio.length < 2) {
+            responderConVoz("¿Dime?");
+            return;
+        }
+        const contenidoSlide = document.querySelector('.reveal .present').innerText || "";
+        const respuestaIA = await consultarIA(comandoLimpio, contenidoSlide);
         procesarAccion(respuestaIA);
+    } else {
+        console.log("☁️ Ignorando conversación ajena a Robin:", text);
     }
 };
 
-// 6. MODELO ACTUALIZADO (Llama 3.3 70B)
+// 5. CONEXIÓN CON GROQ (LLAMA 3.3) - VERSIÓN ULTRA ESTRICTA
 async function consultarIA(frase, contexto) {
     try {
         const response = await fetch(API_URL, {
             method: "POST",
-            headers: { "Authorization": `Bearer ${API_KEY_GROQ}`, "Content-Type": "application/json" },
+            headers: {
+                "Authorization": `Bearer ${API_KEY_GROQ}`,
+                "Content-Type": "application/json"
+            },
             body: JSON.stringify({
-                model: "llama-3.3-70b-versatile", // <-- ESTO CORRIGE EL ERROR DE "DECOMMISSIONED"
+                model: "llama-3.3-70b-versatile",
                 messages: [
-                    { role: "system", content: `Eres Robin. Si piden navegar responde SOLO "SIGUIENTE", "ATRAS" o "INICIO". Si no, responde breve (<15 palabras) usando: ${contexto}` },
+                    {
+                        role: "system",
+                        content: `Tu nombre es Robin. Eres un asistente de voz.
+                        REGLAS CRÍTICAS DE NAVEGACIÓN:
+                        1. Si el usuario pide retroceder, ir atrás o volver: responde SOLO "ATRAS".
+                        2. Si el usuario pide avanzar o siguiente: responde SOLO "SIGUIENTE".
+                        3. Si el usuario pide el inicio: responde SOLO "INICIO".
+                        4. Para cualquier otra pregunta, responde amable en menos de 15 palabras usando este contenido: ${contexto}.
+                        ¡NO te confundas entre ATRAS y SIGUIENTE!`
+                    },
                     { role: "user", content: frase }
                 ],
-                temperature: 0.2
+                temperature: 0.0 // Precisión total para evitar errores
             })
         });
         const data = await response.json();
-        return data.choices[0].message.content.trim();
-    } catch (e) { return "ERROR"; }
+        return data.choices[0].message.content.trim().toUpperCase();
+    } catch (e) {
+        console.error("Error de red:", e);
+        return "ERROR";
+    }
 }
 
-// 7. ACCIONES
+// 6. CONTROLADOR DE REVEAL.JS
 function procesarAccion(res) {
-    const r = res.toUpperCase();
-    if (r.includes("SIGUIENTE")) Reveal.next();
-    else if (r.includes("ATRAS")) Reveal.prev();
-    else if (r.includes("INICIO")) Reveal.slide(0);
-    else if (res !== "ERROR") responderConVoz(res);
+    console.log("🤖 Robin decidió:", res);
+    if (res.includes("SIGUIENTE") && !res.includes("ATRAS")) {
+        Reveal.next();
+        responderConVoz("Siguiente diapositiva.");
+    } else if (res.includes("ATRAS") || res.includes("VOLVER")) {
+        Reveal.prev();
+        responderConVoz("Regresando.");
+    } else if (res.includes("INICIO")) {
+        Reveal.slide(0);
+        responderConVoz("Al inicio.");
+    } else if (res !== "ERROR") {
+        responderConVoz(res.toLowerCase());
+    }
 }
 
-// 8. ACTIVACIÓN
+// 7. ACTIVACIÓN INICIAL
 document.body.onclick = () => {
     if (!sistemaIniciado) {
         sistemaIniciado = true;
-        responderConVoz("Robin listo con modelo actualizado.");
-        recognition.start();
+        responderConVoz("Robin listo. Llámame cuando me necesites.");
+        console.log("✅ Sistema vinculado correctamente.");
     }
 };
 
