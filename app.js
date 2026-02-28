@@ -14,7 +14,7 @@ estilos.innerHTML = `
 `;
 document.head.appendChild(estilos);
 
-// 2. BOTONES DE NAVEGACIÓN (SIN RESET KEY)
+// 2. BOTONES
 const panel = document.createElement('div');
 panel.className = 'controles-robin';
 panel.innerHTML = `
@@ -36,13 +36,13 @@ if (!API_KEY_GROQ) {
 let iaHablando = false;
 let sistemaIniciado = false;
 
-// 4. RECONOCIMIENTO DE VOZ
+// 4. VOZ
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = new SpeechRecognition();
 recognition.lang = 'es-ES';
 recognition.continuous = true;
 
-recognition.onstart = () => console.log("🎙️ Escuchando...");
+recognition.onstart = () => console.log("🎙️ Robin escuchando...");
 recognition.onend = () => { if (sistemaIniciado && !iaHablando) try { recognition.start(); } catch(e){} };
 
 function responderConVoz(mensaje) {
@@ -54,27 +54,29 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.speak(lectura);
 }
 
-// 5. LÓGICA DE CONTROL (ATAJOS LOCALES)
+// 5. LÓGICA DE INTERPRETACIÓN MEJORADA
 recognition.onresult = async (event) => {
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
-    console.log("👂 Oído:", text);
+    console.log("👂 Usuario dice:", text);
     
+    // Detectar si mencionas a Robin en cualquier parte de la frase
     if (/robin|robín|rubín|rubén/.test(text)) {
-        // ATAJOS: Funcionan aunque la API falle
-        if (text.includes("siguiente") || text.includes("avanza") || text.includes("pasa")) return procesarAccion("SIGUIENTE");
-        if (text.includes("atrás") || text.includes("vuelve") || text.includes("anterior")) return procesarAccion("ATRAS");
-        if (text.includes("inicio") || text.includes("principio")) return procesarAccion("INICIO");
+        
+        // Atajos ultra-rápidos (para no esperar a la IA en lo obvio)
+        if (text.includes("siguiente") || text.includes("pasa")) return procesarAccion("SIGUIENTE");
+        if (text.includes("atrás") || text.includes("vuelve")) return procesarAccion("ATRAS");
 
+        // Para todo lo demás, que la IA interprete la intención
         const comando = text.replace(/robin|robín|rubín|rubén/g, "").trim();
         const slideActual = document.querySelector('.reveal .present');
-        const contexto = (slideActual?.innerText || "").substring(0, 500); // Evita el Error 400 por exceso de texto
+        const contexto = (slideActual?.innerText || "").substring(0, 800); 
         
         const respuestaIA = await consultarIA(comando, contexto);
         procesarAccion(respuestaIA);
     }
 };
 
-// 6. IA (MODELO LIGERO Y ESTABLE)
+// 6. IA CON CAPACIDAD DE INTERPRETACIÓN
 async function consultarIA(frase, contexto) {
     try {
         const response = await fetch(API_URL, {
@@ -83,38 +85,47 @@ async function consultarIA(frase, contexto) {
             body: JSON.stringify({
                 model: "llama3-8b-8192",
                 messages: [
-                    { role: "system", content: `Eres Robin. Si piden navegar responde SOLO "SIGUIENTE", "ATRAS" o "INICIO". Si no, responde en <15 palabras usando esto: ${contexto}` },
+                    { 
+                        role: "system", 
+                        content: `Eres Robin, un asistente inteligente para presentaciones. 
+                        TU OBJETIVO: Interpretar la voluntad del usuario.
+                        1. Si el usuario quiere avanzar, ir al final o seguir: Responde solo "SIGUIENTE".
+                        2. Si quiere retroceder o ver lo anterior: Responde solo "ATRAS".
+                        3. Si quiere ir al inicio o empezar: Responde solo "INICIO".
+                        4. Si hace una pregunta sobre el contenido: Responde de forma natural y breve (máximo 20 palabras) usando este contexto: ${contexto}` 
+                    },
                     { role: "user", content: frase }
                 ],
-                temperature: 0
+                temperature: 0.2 // Un poco de temperatura para que no sea tan robótico
             })
         });
         const data = await response.json();
-        if (data.error) throw new Error(data.error.message);
-        return data.choices[0].message.content.trim().toUpperCase();
+        return data.choices[0].message.content.trim();
     } catch (e) { 
-        console.error("Error API:", e);
-        return "ERROR"; 
+        return "Lo siento, tuve un problema con la conexión."; 
     }
 }
 
-// 7. EJECUCIÓN DE ACCIONES
+// 7. EJECUCIÓN
 function procesarAccion(res) {
-    console.log("🤖 Robin dice:", res);
-    if (res.includes("SIGUIENTE")) Reveal.next();
-    else if (res.includes("ATRAS")) Reveal.prev();
-    else if (res.includes("INICIO")) Reveal.slide(0);
-    else if (res !== "ERROR") responderConVoz(res.toLowerCase());
+    console.log("🤖 Robin interpretó:", res);
+    const comando = res.toUpperCase();
+
+    if (comando.includes("SIGUIENTE")) { Reveal.next(); }
+    else if (comando.includes("ATRAS")) { Reveal.prev(); }
+    else if (comando.includes("INICIO")) { Reveal.slide(0); }
+    else { responderConVoz(res); } // Hablar si es una respuesta de texto
 }
 
-// 8. ACTIVACIÓN POR CLIC
+// 8. ACTIVACIÓN
 document.body.onclick = () => {
     if (!sistemaIniciado) {
         sistemaIniciado = true;
-        responderConVoz("Robin activado.");
+        responderConVoz("Robin listo. ¿En qué puedo ayudarte?");
         recognition.start();
     }
-};;
+};
+
 
 
 
