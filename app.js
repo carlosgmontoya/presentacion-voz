@@ -14,7 +14,7 @@ estilos.innerHTML = `
 `;
 document.head.appendChild(estilos);
 
-// 2. BOTONES DE NAVEGACIÓN
+// 2. BOTONES
 const panel = document.createElement('div');
 panel.className = 'controles-robin';
 panel.innerHTML = `
@@ -24,25 +24,24 @@ panel.innerHTML = `
 `;
 document.body.appendChild(panel);
 
-// 3. CONFIGURACIÓN
-const API_KEY_GROQ = localStorage.getItem('GROQ_KEY');
+// 3. CONFIGURACIÓN (Limpia llaves viejas si hay error 401)
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
+let API_KEY_GROQ = localStorage.getItem('GROQ_KEY');
 
 if (!API_KEY_GROQ) {
-    const userKey = prompt("Introduce tu API KEY de Groq:");
-    if (userKey) localStorage.setItem('GROQ_KEY', userKey);
+    API_KEY_GROQ = prompt("Introduce tu API KEY de Groq:");
+    if (API_KEY_GROQ) localStorage.setItem('GROQ_KEY', API_KEY_GROQ);
 }
 
 let iaHablando = false;
 let sistemaIniciado = false;
 
-// 4. RECONOCIMIENTO DE VOZ
+// 4. VOZ
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = new SpeechRecognition();
 recognition.lang = 'es-ES';
 recognition.continuous = true;
 
-recognition.onstart = () => console.log("🎙️ Robin escuchando e interpretando...");
 recognition.onend = () => { if (sistemaIniciado && !iaHablando) try { recognition.start(); } catch(e){} };
 
 function responderConVoz(mensaje) {
@@ -54,83 +53,72 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.speak(lectura);
 }
 
-// 5. LÓGICA DE INTERPRETACIÓN (CON FILTRO DE ERRORES)
+// 5. LÓGICA DE INTERPRETACIÓN (COMANDOS LOCALES + IA)
 recognition.onresult = async (event) => {
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
-    console.log("👂 Escuchado:", text);
+    console.log("👂 Oído:", text);
     
     if (/robin|robín|rubín|rubén/.test(text)) {
-        // --- ATAJOS LOCALES (Para que responda aunque la API falle) ---
-        if (text.includes("siguiente") || text.includes("pasa") || text.includes("avanza")) return procesarAccion("SIGUIENTE");
-        if (text.includes("atrás") || text.includes("vuelve") || text.includes("regresa")) return procesarAccion("ATRAS");
-        if (text.includes("inicio") || text.includes("principio") || text.includes("primera")) return procesarAccion("INICIO");
-        if (text.includes("final") || text.includes("última")) return procesarAccion("FINAL");
+        // ATAJOS LOCALES: Funcionan siempre (Evitan error 400 y 401)
+        if (text.includes("siguiente") || text.includes("avanza") || text.includes("pasa")) return procesarAccion("SIGUIENTE");
+        if (text.includes("atrás") || text.includes("vuelve") || text.includes("anterior")) return procesarAccion("ATRAS");
+        if (text.includes("inicio") || text.includes("principio")) return procesarAccion("INICIO");
 
-        // --- INTERPRETACIÓN POR IA ---
+        // INTERPRETACIÓN POR IA PARA PREGUNTAS
         const comando = text.replace(/robin|robín|rubín|rubén/g, "").trim();
         const slideActual = document.querySelector('.reveal .present');
-        
-        // Limpiamos el texto para evitar el Error 400 (Bad Request)
-        const contextoLimpio = (slideActual?.innerText || "")
-            .replace(/[\n\r\t]/g, " ") // Elimina saltos de línea que rompen el JSON
-            .substring(0, 600);        // Límite de seguridad
+        const contextoLimpio = (slideActual?.innerText || "").replace(/[\n\r\t]/g, " ").substring(0, 600);
         
         const respuestaIA = await consultarIA(comando, contextoLimpio);
         procesarAccion(respuestaIA);
     }
 };
 
-// 6. API IA (INTERPRETACIÓN DE INTENCIONES)
+// 6. IA CON MODELO ACTUALIZADO (llama-3.3-70b-versatile)
 async function consultarIA(frase, contexto) {
     try {
         const response = await fetch(API_URL, {
             method: "POST",
             headers: { "Authorization": `Bearer ${API_KEY_GROQ}`, "Content-Type": "application/json" },
             body: JSON.stringify({
-                model: "llama3-8b-8192",
+                model: "llama-3.3-70b-versatile", // MODELO NUEVO Y SOPORTADO
                 messages: [
-                    { 
-                        role: "system", 
-                        content: `Eres Robin, un asistente para presentaciones. Contexto: ${contexto}. 
-                        Si el usuario quiere moverse, responde SOLO "SIGUIENTE", "ATRAS" o "INICIO". 
-                        Si pregunta algo, responde amable y muy breve (máximo 15 palabras).` 
-                    },
+                    { role: "system", content: `Eres Robin. Si piden navegar responde SOLO "SIGUIENTE", "ATRAS" o "INICIO". Si no, responde breve (<15 palabras) usando: ${contexto}` },
                     { role: "user", content: frase }
                 ],
                 temperature: 0.2
             })
         });
         const data = await response.json();
-        if (data.error) throw new Error(data.error.message);
+        
+        // Si hay error de API Key, la borramos para pedir una nueva
+        if (response.status === 401) {
+            localStorage.removeItem('GROQ_KEY');
+            return "Error de autorización. Recarga la página.";
+        }
+        
         return data.choices[0].message.content.trim();
-    } catch (e) { 
-        console.error("Error en interpretación:", e);
-        return "ERROR"; 
-    }
+    } catch (e) { return "ERROR"; }
 }
 
 // 7. EJECUCIÓN
 function procesarAccion(res) {
-    console.log("🤖 Acción:", res);
-    const comando = res.toUpperCase();
-
-    if (comando.includes("SIGUIENTE")) { Reveal.next(); }
-    else if (comando.includes("ATRAS")) { Reveal.prev(); }
-    else if (comando.includes("INICIO")) { Reveal.slide(0); }
-    else if (comando.includes("FINAL")) { Reveal.slide(Reveal.getTotalSlides()); }
-    else if (res !== "ERROR") { 
-        responderConVoz(res.toLowerCase()); 
-    }
+    const r = res.toUpperCase();
+    if (r.includes("SIGUIENTE")) Reveal.next();
+    else if (r.includes("ATRAS")) Reveal.prev();
+    else if (r.includes("INICIO")) Reveal.slide(0);
+    else if (res !== "ERROR") responderConVoz(res);
 }
 
 // 8. ACTIVACIÓN
 document.body.onclick = () => {
     if (!sistemaIniciado) {
         sistemaIniciado = true;
-        responderConVoz("Robin listo. Te escucho.");
+        responderConVoz("Robin actualizado y listo.");
         recognition.start();
     }
 };
+
 
 
 
