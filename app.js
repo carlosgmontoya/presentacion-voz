@@ -12,7 +12,7 @@ if (!API_KEY_GROQ) {
 
 let iaHablando = false;
 let sistemaIniciado = false;
-let mapaDiapositivas = ""; // Aquí guardaremos los títulos de tus slides
+let mapaDiapositivas = ""; // Registro de títulos y contenido
 
 // --- BOTONES DE RESPALDO ---
 const contenedorBotones = document.createElement('div');
@@ -61,7 +61,7 @@ recognition.onresult = async (event) => {
         const comandoLimpio = text.replace(/robin|robín|rubín|rubén/g, "").trim();
         
         if (comandoLimpio.length < 2) {
-            responderConVoz("¿Dime?");
+            responderConVoz("¿Dime? Estoy listo.");
             return;
         }
 
@@ -71,7 +71,7 @@ recognition.onresult = async (event) => {
     }
 };
 
-// 5. CEREBRO CON MAPA DE DIAPOSITIVAS
+// 5. CONEXIÓN CON GROQ (NAVEGACIÓN POR MAPA)
 async function consultarIA(frase, contextoActual) {
     try {
         const response = await fetch(API_URL, {
@@ -85,14 +85,15 @@ async function consultarIA(frase, contextoActual) {
                 messages: [
                     {
                         role: "system",
-                        content: `Eres Robin. Controlas esta presentación que tiene estos temas:
+                        content: `Eres Robin, asistente de voz. Tienes control total de la presentación.
+                        MAPA DE DIAPOSITIVAS DISPONIBLES:
                         ${mapaDiapositivas}
                         
                         REGLAS DE NAVEGACIÓN:
-                        1. Si piden ir a un tema específico (ej: conclusiones): responde "IR_A_X" (donde X es el número de esa slide).
-                        2. Si piden siguiente/avanzar: responde "SIGUIENTE".
-                        3. Si piden atrás/volver: responde "ATRAS".
-                        4. Para conversar o preguntas sobre "${contextoActual}": responde breve y amable (máx 25 palabras).`
+                        1. Si el usuario pide ir a un tema, título o diapositiva específica: responde "MOVER_A_X" (donde X es el número de esa diapositiva).
+                        2. Si pide siguiente: responde "SIGUIENTE".
+                        3. Si pide atrás: responde "ATRAS".
+                        4. Si es una pregunta o saludo, conversa amable y breve (máx 25 palabras) usando el contexto actual: ${contextoActual}`
                     },
                     { role: "user", content: frase }
                 ],
@@ -104,16 +105,17 @@ async function consultarIA(frase, contextoActual) {
     } catch (e) { return "ERROR"; }
 }
 
-// 6. CONTROLADOR DE ACCIONES MEJORADO
+// 6. CONTROLADOR DE ACCIONES (SALTOS ESPECÍFICOS)
 function procesarAccion(res) {
     console.log("🤖 Robin decidió:", res);
     const resUpper = res.toUpperCase();
 
-    if (resUpper.startsWith("IR_A_")) {
-        const numSlide = parseInt(resUpper.replace("IR_A_", ""));
-        if (!isNaN(numSlide)) {
-            Reveal.slide(numSlide);
-            responderConVoz("Entendido, saltamos a esa diapositiva.");
+    // Lógica para saltar a una diapositiva específica por número
+    if (resUpper.startsWith("MOVER_A_")) {
+        const index = parseInt(resUpper.replace("MOVER_A_", ""));
+        if (!isNaN(index)) {
+            Reveal.slide(index);
+            responderConVoz("Entendido, vamos a esa sección.");
             return;
         }
     }
@@ -132,16 +134,21 @@ function procesarAccion(res) {
 // 7. ESCANEO DE DIAPOSITIVAS Y ACTIVACIÓN
 function generarMapa() {
     const slides = document.querySelectorAll('.reveal .slides section');
-    mapaDiapositivas = Array.from(slides).map((s, i) => `Slide ${i}: ${s.innerText.substring(0, 50)}`).join('\n');
+    mapaDiapositivas = Array.from(slides).map((s, i) => {
+        // Guardamos el número de diapositiva y los primeros 60 caracteres de su texto
+        return `Diapositiva ${i}: "${s.innerText.substring(0, 60).replace(/\n/g, " ")}"`;
+    }).join('\n');
+    console.log("🗺️ Mapa de diapositivas generado.");
 }
 
 document.body.onclick = () => {
     if (!sistemaIniciado) {
-        generarMapa(); // Escanea los títulos antes de empezar
+        generarMapa(); // Escanea el contenido al iniciar
         sistemaIniciado = true;
-        responderConVoz("Hola Carlos, ya conozco tus diapositivas. ¿A cuál quieres ir?");
+        responderConVoz("Hola Carlos, ya conozco todo el contenido. ¿A qué diapositiva quieres ir?");
     }
 };
+
 
 
 
