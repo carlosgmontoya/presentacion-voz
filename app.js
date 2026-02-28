@@ -1,4 +1,42 @@
-// 1. CONFIGURACIÓN
+// 1. INYECCIÓN DE ESTILOS (MODO OSCURO)
+const estilos = document.createElement('style');
+estilos.innerHTML = `
+    .controles-robin {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        display: flex;
+        gap: 10px;
+        z-index: 9999;
+    }
+    .btn-robin {
+        background: #222;
+        color: white;
+        border: 1px solid #444;
+        padding: 10px 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-family: sans-serif;
+        font-size: 14px;
+        transition: 0.3s;
+    }
+    .btn-robin:hover { background: #333; border-color: #666; }
+    .btn-reset { background: #441111; }
+`;
+document.head.appendChild(estilos);
+
+// 2. CREACIÓN DE BOTONES
+const panel = document.createElement('div');
+panel.className = 'controles-robin';
+panel.innerHTML = `
+    <button class="btn-robin" onclick="procesarAccion('ATRAS')">⬅️</button>
+    <button class="btn-robin" onclick="procesarAccion('INICIO')">🏠</button>
+    <button class="btn-robin" onclick="procesarAccion('SIGUIENTE')">➡️</button>
+    <button class="btn-robin btn-reset" onclick="localStorage.removeItem('GROQ_KEY'); location.reload();">🔑 Reset Key</button>
+`;
+document.body.appendChild(panel);
+
+// 3. CONFIGURACIÓN API
 const API_KEY_GROQ = localStorage.getItem('GROQ_KEY');
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
@@ -10,26 +48,20 @@ if (!API_KEY_GROQ) {
 let iaHablando = false;
 let sistemaIniciado = false;
 
-// 2. RECONOCIMIENTO DE VOZ
+// 4. RECONOCIMIENTO DE VOZ
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-if (!SpeechRecognition) {
-    alert("Tu navegador no soporta reconocimiento de voz. Usa Chrome.");
-}
 const recognition = new SpeechRecognition();
 recognition.lang = 'es-ES';
 recognition.continuous = true;
-recognition.interimResults = false;
 
 recognition.onstart = () => console.log("🎙️ Micrófono activo...");
-recognition.onerror = (e) => console.error("❌ Error de micro:", e.error);
-
 recognition.onend = () => {
     if (sistemaIniciado && !iaHablando) {
         try { recognition.start(); } catch (e) {}
     }
 };
 
-// 3. SALIDA DE VOZ
+// 5. SALIDA DE VOZ
 function responderConVoz(mensaje) {
     window.speechSynthesis.cancel();
     const lectura = new SpeechSynthesisUtterance(mensaje);
@@ -42,12 +74,17 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.speak(lectura);
 }
 
-// 4. LÓGICA DE ESCUCHA
+// 6. LÓGICA DE ESCUCHA (CON ATAJOS PARA AHORRAR SALDO)
 recognition.onresult = async (event) => {
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
-    console.log("👂 Escuchado:", text); // Esto DEBE aparecer en tu consola azul
+    console.log("👂 Escuchado:", text);
     
     if (/robin|robín|rubín|rubén/.test(text)) {
+        // Atajos directos sin API (Ahorra tokens)
+        if (text.includes("siguiente") || text.includes("adelante")) return procesarAccion("SIGUIENTE");
+        if (text.includes("atrás") || text.includes("volver")) return procesarAccion("ATRAS");
+        if (text.includes("inicio")) return procesarAccion("INICIO");
+
         const comando = text.replace(/robin|robín|rubín|rubén/g, "").trim();
         if (comando.length < 2) {
             responderConVoz("¿Dime?");
@@ -59,7 +96,7 @@ recognition.onresult = async (event) => {
     }
 };
 
-// 5. API IA
+// 7. API IA (MODELO LIGERO)
 async function consultarIA(frase, contexto) {
     try {
         const response = await fetch(API_URL, {
@@ -69,7 +106,7 @@ async function consultarIA(frase, contexto) {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                model: "llama-3.3-70b-versatile",
+                model: "llama3-8b-8192", // Cambiado a modelo ligero para evitar el 401
                 messages: [
                     {
                         role: "system",
@@ -87,21 +124,20 @@ async function consultarIA(frase, contexto) {
     }
 }
 
-// 6. ACCIONES
+// 8. ACCIONES
 function procesarAccion(res) {
-    console.log("🤖 Robin dice:", res);
+    console.log("🤖 Acción:", res);
     if (res.includes("SIGUIENTE")) { Reveal.next(); }
     else if (res.includes("ATRAS")) { Reveal.prev(); }
     else if (res.includes("INICIO")) { Reveal.slide(0); }
-    else { responderConVoz(res); }
+    else if (res !== "ERROR") { responderConVoz(res); }
 }
 
-// 7. ACTIVACIÓN
+// 9. ACTIVACIÓN
 document.body.onclick = () => {
     if (!sistemaIniciado) {
         sistemaIniciado = true;
-        console.log("🚀 Sistema Robin Iniciado");
-        responderConVoz("Sistema activado");
+        responderConVoz("Robin listo");
         recognition.start();
     }
 };
