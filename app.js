@@ -14,7 +14,7 @@ estilos.innerHTML = `
 `;
 document.head.appendChild(estilos);
 
-// 2. BOTONES
+// 2. BOTONES DE NAVEGACIÓN
 const panel = document.createElement('div');
 panel.className = 'controles-robin';
 panel.innerHTML = `
@@ -36,7 +36,7 @@ if (!API_KEY_GROQ) {
 let iaHablando = false;
 let sistemaIniciado = false;
 
-// 4. VOZ
+// 4. RECONOCIMIENTO DE VOZ
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = new SpeechRecognition();
 recognition.lang = 'es-ES';
@@ -54,43 +54,33 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.speak(lectura);
 }
 
-// 5. LÓGICA DE INTERPRETACIÓN TOTAL
+// 5. LÓGICA DE INTERPRETACIÓN (CON FILTRO DE ERRORES)
 recognition.onresult = async (event) => {
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
-    console.log("👂 Usuario dice:", text);
+    console.log("👂 Escuchado:", text);
     
-    // Filtro flexible para el nombre (Robin, Rubén, etc.)
     if (/robin|robín|rubín|rubén/.test(text)) {
-        
-        // --- NIVEL 1: ATAJOS DE NAVEGACIÓN (Prioridad absoluta y local) ---
-        if (text.includes("siguiente") || text.includes("pasa") || text.includes("adelante") || text.includes("avanza")) {
-            return procesarAccion("SIGUIENTE");
-        }
-        if (text.includes("atrás") || text.includes("vuelve") || text.includes("regresa") || text.includes("anterior")) {
-            return procesarAccion("ATRAS");
-        }
-        if (text.includes("inicio") || text.includes("principio") || text.includes("comienzo") || text.includes("primera")) {
-            return procesarAccion("INICIO");
-        }
-        if (text.includes("final") || text.includes("última") || text.includes("termina")) {
-            return procesarAccion("FINAL");
-        }
+        // --- ATAJOS LOCALES (Para que responda aunque la API falle) ---
+        if (text.includes("siguiente") || text.includes("pasa") || text.includes("avanza")) return procesarAccion("SIGUIENTE");
+        if (text.includes("atrás") || text.includes("vuelve") || text.includes("regresa")) return procesarAccion("ATRAS");
+        if (text.includes("inicio") || text.includes("principio") || text.includes("primera")) return procesarAccion("INICIO");
+        if (text.includes("final") || text.includes("última")) return procesarAccion("FINAL");
 
-        // --- NIVEL 2: INTERPRETACIÓN POR IA (Para preguntas y dudas) ---
+        // --- INTERPRETACIÓN POR IA ---
         const comando = text.replace(/robin|robín|rubín|rubén/g, "").trim();
         const slideActual = document.querySelector('.reveal .present');
         
         // Limpiamos el texto para evitar el Error 400 (Bad Request)
         const contextoLimpio = (slideActual?.innerText || "")
-            .replace(/[\n\r\t]/g, " ") // Quita saltos de línea que rompen el JSON
-            .substring(0, 700);        // Límite seguro de caracteres
+            .replace(/[\n\r\t]/g, " ") // Elimina saltos de línea que rompen el JSON
+            .substring(0, 600);        // Límite de seguridad
         
         const respuestaIA = await consultarIA(comando, contextoLimpio);
         procesarAccion(respuestaIA);
     }
 };
 
-// 6. IA (MODELO LIGERO CON SYSTEM PROMPT DE INTENCIONES)
+// 6. API IA (INTERPRETACIÓN DE INTENCIONES)
 async function consultarIA(frase, contexto) {
     try {
         const response = await fetch(API_URL, {
@@ -101,26 +91,27 @@ async function consultarIA(frase, contexto) {
                 messages: [
                     { 
                         role: "system", 
-                        content: `Eres Robin, un asistente para presentaciones. 
-                        Tu contexto actual es: "${contexto}". 
-                        Si el usuario quiere navegar, responde SOLO la palabra "SIGUIENTE", "ATRAS" o "INICIO". 
-                        Si el usuario pregunta algo, responde de forma conversacional, amable y MUY breve (menos de 20 palabras).` 
+                        content: `Eres Robin, un asistente para presentaciones. Contexto: ${contexto}. 
+                        Si el usuario quiere moverse, responde SOLO "SIGUIENTE", "ATRAS" o "INICIO". 
+                        Si pregunta algo, responde amable y muy breve (máximo 15 palabras).` 
                     },
                     { role: "user", content: frase }
                 ],
-                temperature: 0.3
+                temperature: 0.2
             })
         });
         const data = await response.json();
+        if (data.error) throw new Error(data.error.message);
         return data.choices[0].message.content.trim();
     } catch (e) { 
+        console.error("Error en interpretación:", e);
         return "ERROR"; 
     }
 }
 
-// 7. EJECUCIÓN DE ACCIONES
+// 7. EJECUCIÓN
 function procesarAccion(res) {
-    console.log("🤖 Robin interpretó:", res);
+    console.log("🤖 Acción:", res);
     const comando = res.toUpperCase();
 
     if (comando.includes("SIGUIENTE")) { Reveal.next(); }
@@ -128,7 +119,7 @@ function procesarAccion(res) {
     else if (comando.includes("INICIO")) { Reveal.slide(0); }
     else if (comando.includes("FINAL")) { Reveal.slide(Reveal.getTotalSlides()); }
     else if (res !== "ERROR") { 
-        responderConVoz(res); 
+        responderConVoz(res.toLowerCase()); 
     }
 }
 
@@ -136,7 +127,7 @@ function procesarAccion(res) {
 document.body.onclick = () => {
     if (!sistemaIniciado) {
         sistemaIniciado = true;
-        responderConVoz("Robin listo. ¿En qué puedo ayudarte hoy?");
+        responderConVoz("Robin listo. Te escucho.");
         recognition.start();
     }
 };
