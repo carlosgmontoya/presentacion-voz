@@ -47,22 +47,22 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.speak(lectura);
 }
 
-// 4. LÓGICA DE ESCUCHA CON FILTRO DE NOMBRE "ROBIN"
+// 4. LÓGICA DE ESCUCHA CON FILTRO ESTRICTO "ROBIN"
 recognition.onresult = async (event) => {
     if (iaHablando) return; 
 
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
     
-    // FILTRO ESTRICTO: Solo si mencionas a Robin o variaciones fonéticas comunes
-    if (text.includes("robin") || text.includes("robín") || text.includes("rubín")) {
-        console.log("🎤 Robin activado por:", text);
+    // FILTRO DE ACTIVACIÓN: Solo si el texto contiene variaciones de "Robin"
+    if (text.includes("robin") || text.includes("robín") || text.includes("rubín") || text.includes("rubén")) {
+        console.log("🔔 NOMBRE DETECTADO. Procesando comando:", text);
         
-        // Limpiamos el nombre para que la IA reciba solo la orden
-        const comandoLimpio = text.replace(/robin|robín|rubín/g, "").trim();
+        // Limpiamos el nombre de la frase para que la IA no se confunda
+        const comandoLimpio = text.replace(/robin|robín|rubín|rubén/g, "").trim();
         
-        // Si después de decir "Robin" no dijiste nada más, no enviamos nada a la IA
+        // Si solo dijiste el nombre, Robin saluda
         if (comandoLimpio.length < 2) {
-            responderConVoz("¿Dime?");
+            responderConVoz("¿Sí? Te escucho.");
             return;
         }
 
@@ -70,12 +70,12 @@ recognition.onresult = async (event) => {
         const respuestaIA = await consultarIA(comandoLimpio, contenidoSlide);
         procesarAccion(respuestaIA);
     } else {
-        // Esto aparecerá en consola pero NO activará a la IA
-        console.log("☁️ Ignorando conversación de fondo...");
+        // Esto evita que frases como "pues no realmente" lleguen a la IA
+        console.log("☁️ Conversación de fondo ignorada (sin nombre):", text);
     }
 };
 
-// 5. CONEXIÓN CON GROQ
+// 5. CEREBRO (LLAMA 3.3)
 async function consultarIA(frase, contexto) {
     try {
         const response = await fetch(API_URL, {
@@ -89,15 +89,16 @@ async function consultarIA(frase, contexto) {
                 messages: [
                     { 
                         role: "system", 
-                        content: `Tu nombre es Robin. Eres un asistente de voz.
+                        content: `Eres Robin, un asistente de presentación.
                         REGLAS:
-                        - Comandos: responde SOLO "SIGUIENTE", "ATRAS" o "INICIO".
-                        - Preguntas: responde amable y muy breve (máx 15 palabras).
-                        CONTENIDO: ${contexto}` 
+                        - Si piden avanzar: responde SOLO "SIGUIENTE".
+                        - Si piden volver: responde SOLO "ATRAS".
+                        - Si preguntan: responde amablemente en máximo 20 palabras.
+                        CONTENIDO ACTUAL: ${contexto}` 
                     },
                     { role: "user", content: frase }
                 ],
-                temperature: 0.1 // Bajamos la temperatura para que sea más preciso
+                temperature: 0.1 
             })
         });
         const data = await response.json();
@@ -108,9 +109,8 @@ async function consultarIA(frase, contexto) {
 // 6. CONTROLADOR
 function procesarAccion(res) {
     console.log("🤖 Robin decidió:", res);
-    if (res.includes("SIGUIENTE")) { Reveal.next(); responderConVoz("Siguiente."); }
-    else if (res.includes("ATRAS")) { Reveal.prev(); responderConVoz("Atrás."); }
-    else if (res.includes("INICIO")) { Reveal.slide(0); responderConVoz("Al inicio."); }
+    if (res.includes("SIGUIENTE")) { Reveal.next(); responderConVoz("Cambiando."); }
+    else if (res.includes("ATRAS")) { Reveal.prev(); responderConVoz("Regresando."); }
     else if (res !== "ERROR") { responderConVoz(res.toLowerCase()); }
 }
 
@@ -122,5 +122,6 @@ document.body.onclick = () => {
         console.log("✅ Sistema iniciado correctamente.");
     }
 };
+
 
 
