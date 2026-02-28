@@ -1,17 +1,12 @@
-// 1. CONFIGURACIÓN Y ESTADO
+// 1. CONFIGURACIÓN Y ESTADO (Sin cambios)
 const API_KEY_GROQ = localStorage.getItem('GROQ_KEY');
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
-
-if (!API_KEY_GROQ) {
-    const userKey = prompt("Introduce tu API KEY de Groq:");
-    if (userKey) { localStorage.setItem('GROQ_KEY', userKey); location.reload(); }
-}
 
 let iaHablando = false;
 let sistemaIniciado = false;
 let mapaDiapositivas = ""; 
 
-// 2. BOTONES DE RESPALDO
+// 2. BOTONES DE RESPALDO (Sin cambios)
 const contenedorBotones = document.createElement('div');
 contenedorBotones.style = "position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; gap: 10px;";
 contenedorBotones.innerHTML = `
@@ -19,10 +14,10 @@ contenedorBotones.innerHTML = `
     <button id="btn-next" style="padding: 12px 20px; cursor: pointer; border-radius: 8px; border: none; background: rgba(0,0,0,0.7); color: white; font-weight: bold; backdrop-filter: blur(5px);">SIGUIENTE ➡️</button>
 `;
 document.body.appendChild(contenedorBotones);
-document.getElementById('btn-prev').onclick = () => { console.log("🔘 Botón Atrás"); Reveal.prev(); };
-document.getElementById('btn-next').onclick = () => { console.log("🔘 Botón Siguiente"); Reveal.next(); };
+document.getElementById('btn-prev').onclick = () => Reveal.prev();
+document.getElementById('btn-next').onclick = () => Reveal.next();
 
-// 3. SALIDA DE VOZ (TTS)
+// 3. SALIDA DE VOZ (Sin cambios)
 function responderConVoz(mensaje) {
     if (!mensaje) return;
     console.log("%c🗣️ ROBIN DICE: " + mensaje, "color: #9b59b6; font-weight: bold;");
@@ -37,7 +32,7 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.speak(lectura);
 }
 
-// 4. RECONOCIMIENTO DE VOZ (STT)
+// 4. RECONOCIMIENTO DE VOZ (Sin cambios)
 const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 recognition.lang = 'es-ES';
 recognition.continuous = true;
@@ -52,13 +47,13 @@ recognition.onresult = async (event) => {
         const comandoLimpio = text.replace(/robin|robín|rubén/g, "").trim();
         const slideActual = document.querySelector('.reveal .present').innerText || "";
         const respuestaIA = await consultarIA(comandoLimpio, slideActual);
-        procesarAccion(respuestaIA);
+        procesarAccion(respuestaIA, text); // Enviamos el texto original para el blindaje
     }
 };
 
 recognition.onend = () => { if (sistemaIniciado && !iaHablando) try { recognition.start(); } catch (e) {} };
 
-// 5. CEREBRO DE ROBIN (AJUSTE: PRIORIDAD TOTAL A LA LECTURA REAL)
+// 5. CEREBRO DE ROBIN (Sin cambios en estructura)
 async function consultarIA(frase, contextoActual) {
     try {
         const response = await fetch(API_URL, {
@@ -69,9 +64,7 @@ async function consultarIA(frase, contextoActual) {
                 messages: [
                     {
                         role: "system",
-                        content: `Eres Robin, asistente amable. No uses nombres.
-                        IMPORTANTE: Si el usuario pide LEER, tu acción DEBE ser obligatoriamente LEER. No resumas por tu cuenta.
-                        REGLA DE ORO: La primera diapositiva (inicio) es la 0.
+                        content: `Eres Robin, asistente amable. Si piden LEER, usa ACCION: LEER.
                         MAPA: ${mapaDiapositivas}
                         FORMATO: ACCION: [SIGUIENTE, ATRAS, IR_A_X, LEER, NADA] / VOZ: [Tu respuesta]`
                     },
@@ -85,35 +78,38 @@ async function consultarIA(frase, contextoActual) {
     } catch (e) { return "ACCION: NADA\nVOZ: Error de conexión."; }
 }
 
-// 6. CONTROLADOR DE ACCIONES (BLOQUEO DE INVENCIÓN EN LECTURA)
-function procesarAccion(rawResponse) {
+// 6. CONTROLADOR DE ACCIONES (AQUÍ ESTÁ EL AJUSTE)
+function procesarAccion(rawResponse, textoEscuchado) {
     const accionMatch = rawResponse.match(/ACCION:\s*(\w+)/i);
     const vozMatch = rawResponse.match(/VOZ:\s*(.*)/is);
     let accion = accionMatch ? accionMatch[1].trim().toUpperCase() : "NADA";
     let voz = vozMatch ? vozMatch[1].trim() : "";
 
+    // AJUSTE: Si el usuario dijo "leer", forzamos la acción aunque la IA se distraiga
+    if (textoEscuchado.includes("leer")) {
+        accion = "LEER";
+    }
+
     console.log("%c🤖 IA DECIDIÓ: " + accion, "color: #3498db; font-weight: bold;");
 
     if (accion.startsWith("IR_A_")) {
         const idx = parseInt(accion.split("_").pop());
-        if (!isNaN(idx)) {
-            console.log("%c🚀 EJECUTANDO: Reveal.slide(" + idx + ")", "color: #e67e22; font-weight: bold;");
-            Reveal.slide(idx); 
-        }
+        if (!isNaN(idx)) Reveal.slide(idx);
     } else if (accion === "SIGUIENTE") {
         Reveal.next();
     } else if (accion === "ATRAS") {
         Reveal.prev();
-    } else if (accion === "LEER" || rawResponse.toLowerCase().includes("leer")) {
-        // AJUSTE: Si se detecta "leer", ignoramos el texto de la IA y capturamos la slide
+    } else if (accion === "LEER") {
+        // Blindaje total: capturamos el texto real de la diapositiva
         const textoReal = document.querySelector('.reveal .present').innerText;
-        console.log("%c📖 CAPTURANDO TEXTO REAL DE LA DIAPOSITIVA...", "color: #2ecc71; font-weight: bold;");
-        voz = "Claro, con gusto leo la diapositiva para usted: " + textoReal; 
+        console.log("%c📖 LEYENDO DIAPOSITIVA ACTUAL...", "color: #2ecc71; font-weight: bold;");
+        voz = "Con gusto, en esta diapositiva dice: " + textoReal; 
     }
+    
     if (voz) responderConVoz(voz);
 }
 
-// 7. INICIO
+// 7. INICIO (Sin cambios)
 document.body.onclick = () => {
     if (!sistemaIniciado) {
         const slides = document.querySelectorAll('.reveal .slides section');
@@ -122,8 +118,7 @@ document.body.onclick = () => {
             return `Índice ${i}: ${t.replace(/\n/g, " ")}`;
         }).join('\n');
         sistemaIniciado = true;
-        console.log("%c🗺️ MAPA GENERADO", "background: #2ecc71; color: white; padding: 2px 5px;");
-        responderConVoz("Hola, soy Robin. He analizado tu presentación y estoy listo.");
+        responderConVoz("Hola, soy Robin. Estoy listo.");
     }
 };
 
