@@ -42,7 +42,7 @@ const recognition = new SpeechRecognition();
 recognition.lang = 'es-ES';
 recognition.continuous = true;
 
-recognition.onstart = () => console.log("🎙️ Robin escuchando...");
+recognition.onstart = () => console.log("🎙️ Robin escuchando e interpretando...");
 recognition.onend = () => { if (sistemaIniciado && !iaHablando) try { recognition.start(); } catch(e){} };
 
 function responderConVoz(mensaje) {
@@ -54,29 +54,43 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.speak(lectura);
 }
 
-// 5. LÓGICA DE INTERPRETACIÓN MEJORADA
+// 5. LÓGICA DE INTERPRETACIÓN TOTAL
 recognition.onresult = async (event) => {
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
     console.log("👂 Usuario dice:", text);
     
-    // Detectar si mencionas a Robin en cualquier parte de la frase
+    // Filtro flexible para el nombre (Robin, Rubén, etc.)
     if (/robin|robín|rubín|rubén/.test(text)) {
         
-        // Atajos ultra-rápidos (para no esperar a la IA en lo obvio)
-        if (text.includes("siguiente") || text.includes("pasa")) return procesarAccion("SIGUIENTE");
-        if (text.includes("atrás") || text.includes("vuelve")) return procesarAccion("ATRAS");
+        // --- NIVEL 1: ATAJOS DE NAVEGACIÓN (Prioridad absoluta y local) ---
+        if (text.includes("siguiente") || text.includes("pasa") || text.includes("adelante") || text.includes("avanza")) {
+            return procesarAccion("SIGUIENTE");
+        }
+        if (text.includes("atrás") || text.includes("vuelve") || text.includes("regresa") || text.includes("anterior")) {
+            return procesarAccion("ATRAS");
+        }
+        if (text.includes("inicio") || text.includes("principio") || text.includes("comienzo") || text.includes("primera")) {
+            return procesarAccion("INICIO");
+        }
+        if (text.includes("final") || text.includes("última") || text.includes("termina")) {
+            return procesarAccion("FINAL");
+        }
 
-        // Para todo lo demás, que la IA interprete la intención
+        // --- NIVEL 2: INTERPRETACIÓN POR IA (Para preguntas y dudas) ---
         const comando = text.replace(/robin|robín|rubín|rubén/g, "").trim();
         const slideActual = document.querySelector('.reveal .present');
-        const contexto = (slideActual?.innerText || "").substring(0, 800); 
         
-        const respuestaIA = await consultarIA(comando, contexto);
+        // Limpiamos el texto para evitar el Error 400 (Bad Request)
+        const contextoLimpio = (slideActual?.innerText || "")
+            .replace(/[\n\r\t]/g, " ") // Quita saltos de línea que rompen el JSON
+            .substring(0, 700);        // Límite seguro de caracteres
+        
+        const respuestaIA = await consultarIA(comando, contextoLimpio);
         procesarAccion(respuestaIA);
     }
 };
 
-// 6. IA CON CAPACIDAD DE INTERPRETACIÓN
+// 6. IA (MODELO LIGERO CON SYSTEM PROMPT DE INTENCIONES)
 async function consultarIA(frase, contexto) {
     try {
         const response = await fetch(API_URL, {
@@ -87,26 +101,24 @@ async function consultarIA(frase, contexto) {
                 messages: [
                     { 
                         role: "system", 
-                        content: `Eres Robin, un asistente inteligente para presentaciones. 
-                        TU OBJETIVO: Interpretar la voluntad del usuario.
-                        1. Si el usuario quiere avanzar, ir al final o seguir: Responde solo "SIGUIENTE".
-                        2. Si quiere retroceder o ver lo anterior: Responde solo "ATRAS".
-                        3. Si quiere ir al inicio o empezar: Responde solo "INICIO".
-                        4. Si hace una pregunta sobre el contenido: Responde de forma natural y breve (máximo 20 palabras) usando este contexto: ${contexto}` 
+                        content: `Eres Robin, un asistente para presentaciones. 
+                        Tu contexto actual es: "${contexto}". 
+                        Si el usuario quiere navegar, responde SOLO la palabra "SIGUIENTE", "ATRAS" o "INICIO". 
+                        Si el usuario pregunta algo, responde de forma conversacional, amable y MUY breve (menos de 20 palabras).` 
                     },
                     { role: "user", content: frase }
                 ],
-                temperature: 0.2 // Un poco de temperatura para que no sea tan robótico
+                temperature: 0.3
             })
         });
         const data = await response.json();
         return data.choices[0].message.content.trim();
     } catch (e) { 
-        return "Lo siento, tuve un problema con la conexión."; 
+        return "ERROR"; 
     }
 }
 
-// 7. EJECUCIÓN
+// 7. EJECUCIÓN DE ACCIONES
 function procesarAccion(res) {
     console.log("🤖 Robin interpretó:", res);
     const comando = res.toUpperCase();
@@ -114,18 +126,20 @@ function procesarAccion(res) {
     if (comando.includes("SIGUIENTE")) { Reveal.next(); }
     else if (comando.includes("ATRAS")) { Reveal.prev(); }
     else if (comando.includes("INICIO")) { Reveal.slide(0); }
-    else { responderConVoz(res); } // Hablar si es una respuesta de texto
+    else if (comando.includes("FINAL")) { Reveal.slide(Reveal.getTotalSlides()); }
+    else if (res !== "ERROR") { 
+        responderConVoz(res); 
+    }
 }
 
 // 8. ACTIVACIÓN
 document.body.onclick = () => {
     if (!sistemaIniciado) {
         sistemaIniciado = true;
-        responderConVoz("Robin listo. ¿En qué puedo ayudarte?");
+        responderConVoz("Robin listo. ¿En qué puedo ayudarte hoy?");
         recognition.start();
     }
 };
-
 
 
 
