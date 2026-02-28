@@ -1,4 +1,4 @@
-// 1. ESTILOS (MODO OSCURO)
+// 1. ESTILOS (MODO OSCURO Y BOTONES)
 const estilos = document.createElement('style');
 estilos.innerHTML = `
     .controles-robin {
@@ -14,7 +14,7 @@ estilos.innerHTML = `
 `;
 document.head.appendChild(estilos);
 
-// 2. BOTONES
+// 2. INTERFAZ LIMPIA (SIN RESET KEY)
 const panel = document.createElement('div');
 panel.className = 'controles-robin';
 panel.innerHTML = `
@@ -24,7 +24,7 @@ panel.innerHTML = `
 `;
 document.body.appendChild(panel);
 
-// 3. CONFIGURACIÓN (Limpia llaves viejas si hay error 401)
+// 3. CONFIGURACIÓN Y LLAVE
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
 let API_KEY_GROQ = localStorage.getItem('GROQ_KEY');
 
@@ -36,7 +36,7 @@ if (!API_KEY_GROQ) {
 let iaHablando = false;
 let sistemaIniciado = false;
 
-// 4. VOZ
+// 4. RECONOCIMIENTO DE VOZ
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = new SpeechRecognition();
 recognition.lang = 'es-ES';
@@ -53,18 +53,17 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.speak(lectura);
 }
 
-// 5. LÓGICA DE INTERPRETACIÓN (COMANDOS LOCALES + IA)
+// 5. LÓGICA DE INTERPRETACIÓN (CON MODELO NUEVO)
 recognition.onresult = async (event) => {
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
-    console.log("👂 Oído:", text);
+    console.log("👂 Escuchado:", text);
     
     if (/robin|robín|rubín|rubén/.test(text)) {
-        // ATAJOS LOCALES: Funcionan siempre (Evitan error 400 y 401)
-        if (text.includes("siguiente") || text.includes("avanza") || text.includes("pasa")) return procesarAccion("SIGUIENTE");
-        if (text.includes("atrás") || text.includes("vuelve") || text.includes("anterior")) return procesarAccion("ATRAS");
+        // ATAJOS LOCALES (No gastan API y funcionan siempre)
+        if (text.includes("siguiente") || text.includes("pasa")) return procesarAccion("SIGUIENTE");
+        if (text.includes("atrás") || text.includes("vuelve")) return procesarAccion("ATRAS");
         if (text.includes("inicio") || text.includes("principio")) return procesarAccion("INICIO");
 
-        // INTERPRETACIÓN POR IA PARA PREGUNTAS
         const comando = text.replace(/robin|robín|rubín|rubén/g, "").trim();
         const slideActual = document.querySelector('.reveal .present');
         const contextoLimpio = (slideActual?.innerText || "").replace(/[\n\r\t]/g, " ").substring(0, 600);
@@ -74,14 +73,14 @@ recognition.onresult = async (event) => {
     }
 };
 
-// 6. IA CON MODELO ACTUALIZADO (llama-3.3-70b-versatile)
+// 6. MODELO ACTUALIZADO (Llama 3.3 70B)
 async function consultarIA(frase, contexto) {
     try {
         const response = await fetch(API_URL, {
             method: "POST",
             headers: { "Authorization": `Bearer ${API_KEY_GROQ}`, "Content-Type": "application/json" },
             body: JSON.stringify({
-                model: "llama-3.3-70b-versatile", // MODELO NUEVO Y SOPORTADO
+                model: "llama-3.3-70b-versatile", // <-- ESTO CORRIGE EL ERROR DE "DECOMMISSIONED"
                 messages: [
                     { role: "system", content: `Eres Robin. Si piden navegar responde SOLO "SIGUIENTE", "ATRAS" o "INICIO". Si no, responde breve (<15 palabras) usando: ${contexto}` },
                     { role: "user", content: frase }
@@ -90,18 +89,11 @@ async function consultarIA(frase, contexto) {
             })
         });
         const data = await response.json();
-        
-        // Si hay error de API Key, la borramos para pedir una nueva
-        if (response.status === 401) {
-            localStorage.removeItem('GROQ_KEY');
-            return "Error de autorización. Recarga la página.";
-        }
-        
         return data.choices[0].message.content.trim();
     } catch (e) { return "ERROR"; }
 }
 
-// 7. EJECUCIÓN
+// 7. ACCIONES
 function procesarAccion(res) {
     const r = res.toUpperCase();
     if (r.includes("SIGUIENTE")) Reveal.next();
@@ -114,10 +106,11 @@ function procesarAccion(res) {
 document.body.onclick = () => {
     if (!sistemaIniciado) {
         sistemaIniciado = true;
-        responderConVoz("Robin actualizado y listo.");
+        responderConVoz("Robin listo con modelo actualizado.");
         recognition.start();
     }
 };
+
 
 
 
