@@ -32,7 +32,6 @@ panel.innerHTML = `
     <button class="btn-robin" onclick="procesarAccion('ATRAS')">⬅️</button>
     <button class="btn-robin" onclick="procesarAccion('INICIO')">🏠</button>
     <button class="btn-robin" onclick="procesarAccion('SIGUIENTE')">➡️</button>
-    <button class="btn-robin btn-reset" onclick="localStorage.removeItem('GROQ_KEY'); location.reload();">🔑 Reset Key</button>
 `;
 document.body.appendChild(panel);
 
@@ -141,6 +140,7 @@ document.body.onclick = () => {
         recognition.start();
     }
 };
+
 
 
 
