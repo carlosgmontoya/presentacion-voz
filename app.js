@@ -13,6 +13,18 @@ if (!API_KEY_GROQ) {
 let iaHablando = false;
 let sistemaIniciado = false;
 
+// --- NUEVO: BOTONES DE NAVEGACIÓN (RESPALDO) ---
+const contenedorBotones = document.createElement('div');
+contenedorBotones.style = "position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; gap: 10px;";
+contenedorBotones.innerHTML = `
+    <button id="btn-prev" style="padding: 10px 20px; cursor: pointer; border-radius: 5px; border: none; background: #333; color: white;">⬅️ Atrás</button>
+    <button id="btn-next" style="padding: 10px 20px; cursor: pointer; border-radius: 5px; border: none; background: #333; color: white;">Siguiente ➡️</button>
+`;
+document.body.appendChild(contenedorBotones);
+
+document.getElementById('btn-prev').onclick = () => Reveal.prev();
+document.getElementById('btn-next').onclick = () => Reveal.next();
+
 // 2. RECONOCIMIENTO DE VOZ (STT)
 const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 recognition.lang = 'es-ES';
@@ -20,7 +32,7 @@ recognition.continuous = true;
 
 recognition.onend = () => {
     if (sistemaIniciado && !iaHablando) {
-        try { recognition.start(); } catch (e) { console.log("☁️ Esperando micro..."); }
+        try { recognition.start(); } catch (e) { console.log("Esperando micro..."); }
     }
 };
 
@@ -47,30 +59,26 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.speak(lectura);
 }
 
-// 4. LÓGICA DE ESCUCHA
+// 4. LÓGICA DE ESCUCHA CON FILTRO "ROBIN"
 recognition.onresult = async (event) => {
     if (iaHablando) return;
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
     
-    // Filtro para Robin y sus variantes fonéticas detectadas
     if (text.includes("robin") || text.includes("robín") || text.includes("rubín") || text.includes("rubén")) {
         console.log("🔔 LLAMADA DETECTADA:", text);
-        
         const comandoLimpio = text.replace(/robin|robín|rubín|rubén/g, "").trim();
         
         if (comandoLimpio.length < 2) {
-            responderConVoz("¿Dime, Carlos? ¿En qué puedo ayudarte?");
+            responderConVoz("¿Dime? Estoy escuchándote.");
             return;
         }
         const contenidoSlide = document.querySelector('.reveal .present').innerText || "";
         const respuestaIA = await consultarIA(comandoLimpio, contenidoSlide);
         procesarAccion(respuestaIA);
-    } else {
-        console.log("👂 Escuchado (fondo):", text);
     }
 };
 
-// 5. CONEXIÓN CON GROQ (LLAMA 3.3) - MODO CONVERSACIONAL EQUILIBRADO
+// 5. CONEXIÓN CON GROQ (MODO CONVERSACIONAL)
 async function consultarIA(frase, contexto) {
     try {
         const response = await fetch(API_URL, {
@@ -84,26 +92,20 @@ async function consultarIA(frase, contexto) {
                 messages: [
                     {
                         role: "system",
-                        content: `Eres Robin, un asistente de voz inteligente, carismático y útil. 
-                        Tu objetivo es conversar con el usuario y ayudarle con su presentación.
-                        
-                        REGLAS DE RESPUESTA:
-                        1. Si el usuario quiere ir atrás/regresar: responde SOLO la palabra "ATRAS".
-                        2. Si el usuario quiere avanzar/siguiente: responde SOLO la palabra "SIGUIENTE".
-                        3. Si el usuario quiere ir al inicio: responde SOLO la palabra "INICIO".
-                        4. Si el usuario te saluda o te hace una pregunta, conversa de forma natural, breve (máx 25 palabras) y usa este contexto si es necesario: ${contexto}.
-                        
-                        ¡Sé amable y no respondas solo en mayúsculas a menos que sea un comando de navegación!`
+                        content: `Eres Robin, un asistente conversacional y controlador de diapositivas.
+                        1. Si el usuario pide ir atrás, volver o anterior: responde SOLO "ATRAS".
+                        2. Si el usuario pide siguiente o avanzar: responde SOLO "SIGUIENTE".
+                        3. Si el usuario pide el inicio: responde SOLO "INICIO".
+                        4. Para todo lo demás (saludos, preguntas, charla): responde de forma natural, amistosa y breve (máx 30 palabras). 
+                        Usa este contexto de la diapositiva si te preguntan algo técnico: ${contexto}`
                     },
                     { role: "user", content: frase }
                 ],
-                temperature: 0.7 // Subimos la temperatura para que tenga "personalidad" al hablar
+                temperature: 0.7 // Aumentamos para que pueda conversar
             })
         });
         const data = await response.json();
-        const resultado = data.choices[0].message.content.trim();
-        console.log("🤖 Robin analizó:", resultado);
-        return resultado;
+        return data.choices[0].message.content.trim();
     } catch (e) {
         return "ERROR";
     }
@@ -112,29 +114,32 @@ async function consultarIA(frase, contexto) {
 // 6. CONTROLADOR DE ACCIONES
 function procesarAccion(res) {
     const resUpper = res.toUpperCase();
+    console.log("🤖 Robin decidió:", res);
     
-    if (resUpper.includes("SIGUIENTE") && resUpper.length < 15) {
+    // Si la respuesta es un comando puro
+    if (resUpper === "SIGUIENTE") {
         Reveal.next();
-        responderConVoz("Claro, pasemos a la siguiente.");
-    } else if ((resUpper.includes("ATRAS") || resUpper.includes("VOLVER")) && resUpper.length < 15) {
+        responderConVoz("Cambiando diapositiva.");
+    } else if (resUpper === "ATRAS") {
         Reveal.prev();
-        responderConVoz("Sin problema, volvemos atrás.");
-    } else if (resUpper.includes("INICIO") && resUpper.length < 15) {
+        responderConVoz("Regresando.");
+    } else if (resUpper === "INICIO") {
         Reveal.slide(0);
-        responderConVoz("Volviendo a la portada.");
-    } else if (res !== "ERROR") {
-        // Si no es un comando corto, es una respuesta conversacional
+        responderConVoz("Vamos al comienzo.");
+    } else {
+        // Si no es comando, es conversación pura
         responderConVoz(res);
     }
 }
 
-// 7. INICIO
+// 7. ACTIVACIÓN
 document.body.onclick = () => {
     if (!sistemaIniciado) {
         sistemaIniciado = true;
-        responderConVoz("Hola Carlos, soy Robin. Sistema vinculado y listo para charlar.");
+        responderConVoz("Sistema activo. Puedes hablar conmigo o usar los botones de la pantalla.");
     }
 };
+
 
 
 
