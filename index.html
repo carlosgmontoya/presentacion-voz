@@ -2,22 +2,90 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
-    <title>Presentación Controlada por Voz</title>
+    <title>Presentación Controlada por Voz - UDB</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/black.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/white.min.css">
+    
+    <style>
+        :root {
+            --udb-azul: #0056b3;
+            --udb-amarillo: #ffcc00;
+        }
+
+        /* Línea gráfica superior */
+        .header-line {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            height: 10px;
+            background: var(--udb-azul);
+            z-index: 10;
+        }
+
+        /* Logo institucional */
+        .udb-logo {
+            position: fixed;
+            top: 25px;
+            right: 25px;
+            width: 120px;
+            z-index: 10;
+        }
+
+        /* Línea gráfica inferior con nombre */
+        .footer-bar {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            height: 40px;
+            background: var(--udb-azul);
+            border-top: 5px solid var(--udb-amarillo);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            padding-left: 20px;
+            color: white;
+            font-family: sans-serif;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .reveal h1 { color: var(--udb-azul); text-transform: none; }
+    </style>
 </head>
 <body>
+    <div class="header-line"></div>
+    <img src="Logo-8.5.jpg" class="udb-logo" alt="Logo UDB">
+    <div class="footer-bar">UNIVERSIDAD DON BOSCO</div>
+
     <div class="reveal">
         <div class="slides">
-            <section><h1>Bienvenido</h1><p>Dí "Siguiente" para empezar</p></section>
-            <section><h1>Página 2</h1><p>Análisis de Datos</p></section>
-            <section><h1>Página 3</h1><p>Conclusiones Finales</p></section>
+            <section>
+                <h1>Bienvenido</h1>
+                <p>Di <strong>"Robin, Siguiente"</strong> para empezar</p>
+                <p style="font-size: 0.6em; color: gray;">Haz clic en la pantalla para activar el sistema</p>
+            </section>
+            
+            <section>
+                <h1>Análisis de Datos</h1>
+                <p>Contenido institucional alineado a la línea gráfica.</p>
+            </section>
+            
+            <section>
+                <h1>Conclusiones Finales</h1>
+                <p>Gracias por su atención.</p>
+            </section>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.js"></script>
     <script>
-        Reveal.initialize({ hash: true });
+        Reveal.initialize({ 
+            hash: true,
+            controls: false, // Ocultamos flechas para forzar el uso de la voz
+            progress: true,
+            center: true
+        });
     </script>
-    <script src="app.js"></script> </body>
+    <script src="app.js"></script>
+</body>
 </html>
