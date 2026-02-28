@@ -12,9 +12,9 @@ if (!API_KEY_GROQ) {
 
 let iaHablando = false;
 let sistemaIniciado = false;
-let mapaDiapositivas = ""; // Registro de títulos y contenido escaneado
+let mapaDiapositivas = ""; 
 
-// --- BOTONES DE RESPALDO VISUALES ---
+// --- BOTONES DE RESPALDO ---
 const contenedorBotones = document.createElement('div');
 contenedorBotones.style = "position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; gap: 10px;";
 contenedorBotones.innerHTML = `
@@ -60,18 +60,24 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.speak(lectura);
 }
 
-// 4. LÓGICA DE ESCUCHA CON FILTRO DE NOMBRE
+// --- NUEVA FUNCIÓN: LEER CONTENIDO REAL ---
+function leerDiapositivaActual() {
+    const texto = document.querySelector('.reveal .present').innerText;
+    responderConVoz("En esta diapositiva dice lo siguiente: " + texto);
+}
+
+// 4. LÓGICA DE ESCUCHA
 recognition.onresult = async (event) => {
     if (iaHablando) return;
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
     
-    // Filtro para Robin y sus variantes
     if (text.includes("robin") || text.includes("robín") || text.includes("rubín") || text.includes("rubén")) {
         console.log("🔔 LLAMADA DETECTADA:", text);
         const comandoLimpio = text.replace(/robin|robín|rubín|rubén/g, "").trim();
         
-        if (comandoLimpio.length < 2) {
-            responderConVoz("¿Dime? Estoy listo.");
+        // Atajo directo para leer sin pasar por la IA si es muy evidente
+        if (comandoLimpio.includes("lee") || comandoLimpio.includes("leer") || comandoLimpio.includes("qué dice")) {
+            leerDiapositivaActual();
             return;
         }
 
@@ -81,7 +87,7 @@ recognition.onresult = async (event) => {
     }
 };
 
-// 5. CONEXIÓN CON GROQ (NAVEGACIÓN POR MAPA E ÍNDICE CERO)
+// 5. CONEXIÓN CON GROQ (MEJORADA PARA LECTURA)
 async function consultarIA(frase, contextoActual) {
     try {
         const response = await fetch(API_URL, {
@@ -95,19 +101,18 @@ async function consultarIA(frase, contextoActual) {
                 messages: [
                     {
                         role: "system",
-                        content: `Eres Robin, asistente de voz. Controlas esta presentación:
-                        ${mapaDiapositivas}
+                        content: `Eres Robin, asistente de voz. 
+                        MAPA: ${mapaDiapositivas}
                         
-                        REGLAS CRÍTICAS:
-                        1. La diapositiva inicial/primera/portada es SIEMPRE la Diapositiva 0.
-                        2. Si piden ir a un tema específico (ej: conclusiones, método): responde "IR_A_X" (X es el número del mapa).
-                        3. Si piden la primera, bienvenida o el inicio: responde SOLO "IR_A_0".
-                        4. Si piden siguiente o atrás: responde "SIGUIENTE" o "ATRAS".
-                        5. Si es charla o duda: responde amable y breve (máx 25 palabras) usando el contexto de la slide: ${contextoActual}`
+                        REGLAS:
+                        1. Si piden leer la diapositiva: responde "ACCION_LEER".
+                        2. Si piden ir a un tema: responde "IR_A_X" (X es el número).
+                        3. Si piden siguiente/atrás: responde SOLO "SIGUIENTE" o "ATRAS".
+                        4. Para dudas sobre la slide actual "${contextoActual}": responde breve.`
                     },
                     { role: "user", content: frase }
                 ],
-                temperature: 0.3 // Equilibrio para precisión y fluidez
+                temperature: 0.3
             })
         });
         const data = await response.json();
@@ -115,50 +120,51 @@ async function consultarIA(frase, contextoActual) {
     } catch (e) { return "ERROR"; }
 }
 
-// 6. CONTROLADOR DE ACCIONES
+// 6. CONTROLADOR DE ACCIONES (CORREGIDO PARA EVITAR SALTOS FALSOS)
 function procesarAccion(res) {
     console.log("🤖 Robin decidió:", res);
     const resUpper = res.toUpperCase();
 
-    // Salto directo a diapositiva específica (incluyendo la 0)
-    if (resUpper.includes("IR_A_")) {
-        const partes = resUpper.split("_");
-        const index = parseInt(partes[partes.length - 1]);
-        
+    if (resUpper === "ACCION_LEER") {
+        leerDiapositivaActual();
+        return;
+    }
+
+    if (resUpper.startsWith("IR_A_")) {
+        const index = parseInt(resUpper.split("_").pop());
         if (!isNaN(index)) {
             Reveal.slide(index);
-            responderConVoz("Entendido, saltamos a esa diapositiva.");
+            responderConVoz("Cambiando a esa sección.");
             return;
         }
     }
 
-    if (resUpper.includes("SIGUIENTE")) {
+    // Solo avanzamos si la respuesta es EXCLUSIVAMENTE el comando
+    if (resUpper === "SIGUIENTE") {
         Reveal.next();
-        responderConVoz("Claro, pasemos a la siguiente.");
-    } else if (resUpper.includes("ATRAS")) {
+        responderConVoz("Pasamos a la siguiente.");
+    } else if (resUpper === "ATRAS") {
         Reveal.prev();
-        responderConVoz("Regresando.");
+        responderConVoz("Volvemos atrás.");
     } else if (res !== "ERROR") {
         responderConVoz(res);
     }
 }
 
-// 7. ESCANEO DE DIAPOSITIVAS Y ACTIVACIÓN
+// 7. INICIO
 function generarMapa() {
     const slides = document.querySelectorAll('.reveal .slides section');
-    mapaDiapositivas = Array.from(slides).map((s, i) => {
-        return `Diapositiva ${i}: "${s.innerText.substring(0, 80).replace(/\n/g, " ")}"`;
-    }).join('\n');
-    console.log("🗺️ Mapa de diapositivas generado.");
+    mapaDiapositivas = Array.from(slides).map((s, i) => `Slide ${i}: ${s.innerText.substring(0, 50)}`).join('\n');
 }
 
 document.body.onclick = () => {
     if (!sistemaIniciado) {
-        generarMapa(); // Escanea el contenido al hacer el primer clic
+        generarMapa();
         sistemaIniciado = true;
-        responderConVoz("Hola Carlos, ya conozco el contenido de tus diapositivas. ¿A cuál quieres ir?");
+        responderConVoz("Sistema listo. Puedo leer tus diapositivas si me lo pides.");
     }
 };
+
 
 
 
