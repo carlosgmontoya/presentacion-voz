@@ -1,77 +1,65 @@
-// 1. CONFIGURACIÓN GROQ
+// 1. CONFIGURACIÓN
 const API_KEY_GROQ = localStorage.getItem('GROQ_KEY');
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 if (!API_KEY_GROQ) {
     const userKey = prompt("Introduce tu API KEY de Groq:");
-    if (userKey) {
-        localStorage.setItem('GROQ_KEY', userKey);
-        location.reload();
-    }
+    if (userKey) localStorage.setItem('GROQ_KEY', userKey);
 }
 
-// VARIABLES DE ESTADO
 let iaHablando = false;
 let sistemaIniciado = false;
 
-// 2. RECONOCIMIENTO DE VOZ (STT)
-const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+// 2. RECONOCIMIENTO DE VOZ
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!SpeechRecognition) {
+    alert("Tu navegador no soporta reconocimiento de voz. Usa Chrome.");
+}
+const recognition = new SpeechRecognition();
 recognition.lang = 'es-ES';
 recognition.continuous = true;
+recognition.interimResults = false;
+
+recognition.onstart = () => console.log("🎙️ Micrófono activo...");
+recognition.onerror = (e) => console.error("❌ Error de micro:", e.error);
 
 recognition.onend = () => {
     if (sistemaIniciado && !iaHablando) {
-        try { recognition.start(); } catch (e) { console.log("Esperando micro..."); }
+        try { recognition.start(); } catch (e) {}
     }
 };
 
-// 3. SALIDA DE VOZ (TTS)
+// 3. SALIDA DE VOZ
 function responderConVoz(mensaje) {
     window.speechSynthesis.cancel();
     const lectura = new SpeechSynthesisUtterance(mensaje);
     lectura.lang = 'es-ES';
-    
-    lectura.onstart = () => {
-        iaHablando = true;
-        recognition.stop(); 
-    };
-    
+    lectura.onstart = () => { iaHablando = true; recognition.stop(); };
     lectura.onend = () => {
         iaHablando = false;
-        setTimeout(() => {
-            if (sistemaIniciado) {
-                try { recognition.start(); } catch (e) {}
-            }
-        }, 700);
+        setTimeout(() => { if (sistemaIniciado) recognition.start(); }, 500);
     };
-    
     window.speechSynthesis.speak(lectura);
 }
 
-// 4. LÓGICA DE ESCUCHA CON FILTRO "ROBIN"
+// 4. LÓGICA DE ESCUCHA
 recognition.onresult = async (event) => {
-    if (iaHablando) return;
-    
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
+    console.log("👂 Escuchado:", text); // Esto DEBE aparecer en tu consola azul
     
-    // Filtro de activación
     if (/robin|robín|rubín|rubén/.test(text)) {
-        console.log("🔔 ROBIN ACTIVADO:", text);
-        
-        const comandoLimpio = text.replace(/robin|robín|rubín|rubén/g, "").trim();
-        
-        if (comandoLimpio.length < 2) {
+        const comando = text.replace(/robin|robín|rubín|rubén/g, "").trim();
+        if (comando.length < 2) {
             responderConVoz("¿Dime?");
             return;
         }
-
-        const contenidoSlide = document.querySelector('.reveal .present')?.innerText || "No hay contenido visible";
-        const respuestaIA = await consultarIA(comandoLimpio, contenidoSlide);
+        const contexto = document.querySelector('.reveal .present')?.innerText || "";
+        const respuestaIA = await consultarIA(comando, contexto);
         procesarAccion(respuestaIA);
     }
 };
 
-// 5. CONEXIÓN CON GROQ (LLAMA 3.3)
+// 5. API IA
 async function consultarIA(frase, contexto) {
     try {
         const response = await fetch(API_URL, {
@@ -85,50 +73,36 @@ async function consultarIA(frase, contexto) {
                 messages: [
                     {
                         role: "system",
-                        content: `Tu nombre es Robin. Eres un asistente de voz para presentaciones.
-                        REGLAS CRÍTICAS:
-                        1. Si piden avanzar/siguiente: responde SOLO "SIGUIENTE".
-                        2. Si piden volver/atrás: responde SOLO "ATRAS".
-                        3. Si piden inicio: responde SOLO "INICIO".
-                        4. Otros casos: responde amable en menos de 15 palabras usando este contexto: ${contexto}.`
+                        content: `Eres Robin. Si piden avanzar: "SIGUIENTE". Si piden volver: "ATRAS". Si piden inicio: "INICIO". De lo contrario, responde breve (<15 palabras) sobre: ${contexto}`
                     },
                     { role: "user", content: frase }
                 ],
-                temperature: 0.0
+                temperature: 0
             })
         });
-
         const data = await response.json();
         return data.choices[0].message.content.trim().toUpperCase();
     } catch (e) {
-        console.error("Error de red:", e);
         return "ERROR";
     }
 }
 
-// 6. CONTROLADOR DE REVEAL.JS
+// 6. ACCIONES
 function procesarAccion(res) {
-    console.log("🤖 Robin decidió:", res);
-    
-    if (res.includes("SIGUIENTE")) {
-        Reveal.next();
-    } else if (res.includes("ATRAS")) {
-        Reveal.prev();
-    } else if (res.includes("INICIO")) {
-        Reveal.slide(0);
-    } else if (res !== "ERROR") {
-        // Si no es un comando, habla la respuesta de la IA
-        responderConVoz(res);
-    }
+    console.log("🤖 Robin dice:", res);
+    if (res.includes("SIGUIENTE")) { Reveal.next(); }
+    else if (res.includes("ATRAS")) { Reveal.prev(); }
+    else if (res.includes("INICIO")) { Reveal.slide(0); }
+    else { responderConVoz(res); }
 }
 
-// 7. ACTIVACIÓN INICIAL
+// 7. ACTIVACIÓN
 document.body.onclick = () => {
     if (!sistemaIniciado) {
         sistemaIniciado = true;
-        responderConVoz("Robin listo. Puedes hablarme.");
-        console.log("✅ Sistema iniciado.");
-        try { recognition.start(); } catch(e) {}
+        console.log("🚀 Sistema Robin Iniciado");
+        responderConVoz("Sistema activado");
+        recognition.start();
     }
 };
 
