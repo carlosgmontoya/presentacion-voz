@@ -20,15 +20,13 @@ recognition.continuous = true;
 
 recognition.onend = () => {
     if (sistemaIniciado && !iaHablando) {
-        try { recognition.start(); } catch (e) { console.log("☁️ Sistema en espera..."); }
+        try { recognition.start(); } catch (e) { console.log("☁️ Esperando micro..."); }
     }
 };
 
 // 3. SALIDA DE VOZ (TTS)
 function responderConVoz(mensaje) {
-    // Imprimimos en consola lo que Robin va a decir
     console.log("🗣️ Robin dice:", mensaje);
-
     window.speechSynthesis.cancel();
     const lectura = new SpeechSynthesisUtterance(mensaje);
     lectura.lang = 'es-ES';
@@ -49,31 +47,30 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.speak(lectura);
 }
 
-// 4. LÓGICA DE ESCUCHA CON FILTRO ESTRICTO "ROBIN"
+// 4. LÓGICA DE ESCUCHA
 recognition.onresult = async (event) => {
     if (iaHablando) return;
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
     
+    // Filtro para Robin y sus variantes fonéticas detectadas
     if (text.includes("robin") || text.includes("robín") || text.includes("rubín") || text.includes("rubén")) {
-        // Registro visual de la instrucción detectada
-        console.log("🔔 ROBIN ACTIVADO. Instrucción recibida:", text);
+        console.log("🔔 LLAMADA DETECTADA:", text);
         
         const comandoLimpio = text.replace(/robin|robín|rubín|rubén/g, "").trim();
         
         if (comandoLimpio.length < 2) {
-            responderConVoz("¿Dime?");
+            responderConVoz("¿Dime, Carlos? ¿En qué puedo ayudarte?");
             return;
         }
         const contenidoSlide = document.querySelector('.reveal .present').innerText || "";
         const respuestaIA = await consultarIA(comandoLimpio, contenidoSlide);
         procesarAccion(respuestaIA);
     } else {
-        // Log de lo que Robin ignora para que sepas que sigue escuchando
-        console.log("👂 Escuchado (ignorando):", text);
+        console.log("👂 Escuchado (fondo):", text);
     }
 };
 
-// 5. CONEXIÓN CON GROQ (LLAMA 3.3)
+// 5. CONEXIÓN CON GROQ (LLAMA 3.3) - MODO CONVERSACIONAL EQUILIBRADO
 async function consultarIA(frase, contexto) {
     try {
         const response = await fetch(API_URL, {
@@ -87,54 +84,58 @@ async function consultarIA(frase, contexto) {
                 messages: [
                     {
                         role: "system",
-                        content: `Tu nombre es Robin. Asistente de voz.
-                        REGLAS:
-                        - Retroceder/atrás/volver: responde SOLO "ATRAS".
-                        - Avanzar/siguiente: responde SOLO "SIGUIENTE".
-                        - Inicio: responde SOLO "INICIO".
-                        - Otros: responde breve (15 palabras) usando: ${contexto}.`
+                        content: `Eres Robin, un asistente de voz inteligente, carismático y útil. 
+                        Tu objetivo es conversar con el usuario y ayudarle con su presentación.
+                        
+                        REGLAS DE RESPUESTA:
+                        1. Si el usuario quiere ir atrás/regresar: responde SOLO la palabra "ATRAS".
+                        2. Si el usuario quiere avanzar/siguiente: responde SOLO la palabra "SIGUIENTE".
+                        3. Si el usuario quiere ir al inicio: responde SOLO la palabra "INICIO".
+                        4. Si el usuario te saluda o te hace una pregunta, conversa de forma natural, breve (máx 25 palabras) y usa este contexto si es necesario: ${contexto}.
+                        
+                        ¡Sé amable y no respondas solo en mayúsculas a menos que sea un comando de navegación!`
                     },
                     { role: "user", content: frase }
                 ],
-                temperature: 0.0 // Precisión máxima
+                temperature: 0.7 // Subimos la temperatura para que tenga "personalidad" al hablar
             })
         });
         const data = await response.json();
-        const resultado = data.choices[0].message.content.trim().toUpperCase();
-        
-        // Aquí mostramos el "razonamiento" o decisión final de la IA
-        console.log("🤖 Robin decidió:", resultado);
+        const resultado = data.choices[0].message.content.trim();
+        console.log("🤖 Robin analizó:", resultado);
         return resultado;
     } catch (e) {
-        console.error("❌ Error de red:", e);
         return "ERROR";
     }
 }
 
-// 6. CONTROLADOR DE REVEAL.JS
+// 6. CONTROLADOR DE ACCIONES
 function procesarAccion(res) {
-    if (res.includes("SIGUIENTE") && !res.includes("ATRAS")) {
+    const resUpper = res.toUpperCase();
+    
+    if (resUpper.includes("SIGUIENTE") && resUpper.length < 15) {
         Reveal.next();
-        responderConVoz("Cambiando diapositiva.");
-    } else if (res.includes("ATRAS") || res.includes("VOLVER")) {
+        responderConVoz("Claro, pasemos a la siguiente.");
+    } else if ((resUpper.includes("ATRAS") || resUpper.includes("VOLVER")) && resUpper.length < 15) {
         Reveal.prev();
-        responderConVoz("Retrocediendo.");
-    } else if (res.includes("INICIO")) {
+        responderConVoz("Sin problema, volvemos atrás.");
+    } else if (resUpper.includes("INICIO") && resUpper.length < 15) {
         Reveal.slide(0);
-        responderConVoz("Volviendo al inicio.");
+        responderConVoz("Volviendo a la portada.");
     } else if (res !== "ERROR") {
-        responderConVoz(res.toLowerCase());
+        // Si no es un comando corto, es una respuesta conversacional
+        responderConVoz(res);
     }
 }
 
-// 7. ACTIVACIÓN INICIAL
+// 7. INICIO
 document.body.onclick = () => {
     if (!sistemaIniciado) {
         sistemaIniciado = true;
-        responderConVoz("Robin activo. Registrando actividad en consola.");
-        console.log("✅ Sistema vinculado. Historial listo.");
+        responderConVoz("Hola Carlos, soy Robin. Sistema vinculado y listo para charlar.");
     }
 };
+
 
 
 
