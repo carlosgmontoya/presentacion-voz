@@ -48,7 +48,7 @@ recognition.onresult = async (event) => {
     console.log("%c👂 ESCUCHADO: " + text, "color: #7f8c8d; font-style: italic;");
 
     if (text.includes("robin") || text.includes("robín") || text.includes("rubén")) {
-        console.log("%c🔔 LLAMADA DETECTADA: " + text, "color: #f1c40f; font-weight: bold; border-left: 4px solid #f1c40f; padding-left: 5px;");
+        console.log("%c🔔 LLAMADA DETECTADA: " + text, "color: #f1c40f; font-weight: bold;");
         const comandoLimpio = text.replace(/robin|robín|rubén/g, "").trim();
         const slideActual = document.querySelector('.reveal .present').innerText || "";
         const respuestaIA = await consultarIA(comandoLimpio, slideActual);
@@ -58,7 +58,7 @@ recognition.onresult = async (event) => {
 
 recognition.onend = () => { if (sistemaIniciado && !iaHablando) try { recognition.start(); } catch (e) {} };
 
-// 5. CEREBRO DE ROBIN (AJUSTE DE LECTURA PRECISA)
+// 5. CEREBRO DE ROBIN (AJUSTE: PRIORIDAD TOTAL A LA LECTURA REAL)
 async function consultarIA(frase, contextoActual) {
     try {
         const response = await fetch(API_URL, {
@@ -70,7 +70,8 @@ async function consultarIA(frase, contextoActual) {
                     {
                         role: "system",
                         content: `Eres Robin, asistente amable. No uses nombres.
-                        REGLA DE ORO: Si el usuario pide LEER, responde únicamente con la acción LEER y una frase de cortesía mínima.
+                        IMPORTANTE: Si el usuario pide LEER, tu acción DEBE ser obligatoriamente LEER. No resumas por tu cuenta.
+                        REGLA DE ORO: La primera diapositiva (inicio) es la 0.
                         MAPA: ${mapaDiapositivas}
                         FORMATO: ACCION: [SIGUIENTE, ATRAS, IR_A_X, LEER, NADA] / VOZ: [Tu respuesta]`
                     },
@@ -84,7 +85,7 @@ async function consultarIA(frase, contextoActual) {
     } catch (e) { return "ACCION: NADA\nVOZ: Error de conexión."; }
 }
 
-// 6. CONTROLADOR DE ACCIONES
+// 6. CONTROLADOR DE ACCIONES (BLOQUEO DE INVENCIÓN EN LECTURA)
 function procesarAccion(rawResponse) {
     const accionMatch = rawResponse.match(/ACCION:\s*(\w+)/i);
     const vozMatch = rawResponse.match(/VOZ:\s*(.*)/is);
@@ -100,16 +101,14 @@ function procesarAccion(rawResponse) {
             Reveal.slide(idx); 
         }
     } else if (accion === "SIGUIENTE") {
-        console.log("%c🚀 EJECUTANDO: Reveal.next()", "color: #e67e22; font-weight: bold;");
         Reveal.next();
     } else if (accion === "ATRAS") {
-        console.log("%c🚀 EJECUTANDO: Reveal.prev()", "color: #e67e22; font-weight: bold;");
         Reveal.prev();
-    } else if (accion === "LEER") {
-        // AJUSTE: Extraemos el texto real y evitamos que Robin invente contenido
+    } else if (accion === "LEER" || rawResponse.toLowerCase().includes("leer")) {
+        // AJUSTE: Si se detecta "leer", ignoramos el texto de la IA y capturamos la slide
         const textoReal = document.querySelector('.reveal .present').innerText;
-        console.log("%c📖 LEYENDO CONTENIDO REAL...", "color: #2ecc71; font-weight: bold;");
-        voz = "Con gusto. En esta diapositiva dice: " + textoReal; 
+        console.log("%c📖 CAPTURANDO TEXTO REAL DE LA DIAPOSITIVA...", "color: #2ecc71; font-weight: bold;");
+        voz = "Claro, con gusto leo la diapositiva para usted: " + textoReal; 
     }
     if (voz) responderConVoz(voz);
 }
