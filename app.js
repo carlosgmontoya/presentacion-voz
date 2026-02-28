@@ -53,7 +53,7 @@ recognition.onresult = async (event) => {
 
 recognition.onend = () => { if (sistemaIniciado && !iaHablando) try { recognition.start(); } catch (e) {} };
 
-// 5. CEREBRO DE ROBIN (AJUSTE: DISTINCIÓN ENTRE LEER Y EXPLICAR)
+// 5. CEREBRO DE ROBIN (AMABILIDAD + BREVEDAD)
 async function consultarIA(frase, contextoActual) {
     try {
         const response = await fetch(API_URL, {
@@ -64,12 +64,15 @@ async function consultarIA(frase, contextoActual) {
                 messages: [
                     {
                         role: "system",
-                        content: `Eres Robin, asistente amable. 
-                        - Si piden LEER: Usa ACCION: LEER.
-                        - Si piden EXPLICAR algo: Usa ACCION: EXPLICAR y da una respuesta breve y experta.
-                        - Si piden NAVEGAR: Usa IR_A_0 (inicio), SIGUIENTE o ATRAS.
+                        content: `Eres Robin, un asistente amable y profesional. 
+                        REGLAS:
+                        1. Sé muy breve (máximo 2 frases).
+                        2. Si saludan: Acción SALUDO. Responde con calidez.
+                        3. Si piden LEER: Acción LEER.
+                        4. Si preguntan CONCEPTOS: Acción EXPLICAR.
+                        5. Navegación: IR_A_0 (inicio), SIGUIENTE, ATRAS.
                         MAPA: ${mapaDiapositivas}
-                        FORMATO: ACCION: [SIGUIENTE, ATRAS, IR_A_X, LEER, EXPLICAR, NADA] / VOZ: [Tu respuesta]`
+                        FORMATO: ACCION: [COMANDO] / VOZ: [Respuesta]`
                     },
                     { role: "user", content: `Contexto: ${contextoActual}. Usuario: ${frase}` }
                 ],
@@ -81,18 +84,15 @@ async function consultarIA(frase, contextoActual) {
     } catch (e) { return "ACCION: NADA\nVOZ: Error de conexión."; }
 }
 
-// 6. CONTROLADOR DE ACCIONES (LÓGICA HÍBRIDA)
+// 6. CONTROLADOR DE ACCIONES
 function procesarAccion(rawResponse, textoEscuchado) {
     const accionMatch = rawResponse.match(/ACCION:\s*([\w_]+)/i);
     const vozMatch = rawResponse.match(/VOZ:\s*(.*)/is);
     let accion = accionMatch ? accionMatch[1].trim().toUpperCase() : "NADA";
     let voz = vozMatch ? vozMatch[1].trim() : "";
 
-    // BLINDAJE INTELIGENTE
-    const quiereExplicacion = textoEscuchado.includes("explica") || textoEscuchado.includes("qué es") || textoEscuchado.includes("que es");
-    const quiereLectura = textoEscuchado.includes("leer") || textoEscuchado.includes("lea");
-
-    if (quiereLectura && !quiereExplicacion) {
+    // Blindaje de lectura técnica
+    if ((textoEscuchado.includes("leer") || textoEscuchado.includes("lea")) && !textoEscuchado.includes("explica")) {
         accion = "LEER";
     }
 
@@ -107,13 +107,10 @@ function procesarAccion(rawResponse, textoEscuchado) {
         Reveal.prev();
     } else if (accion === "LEER") {
         const textoReal = document.querySelector('.reveal .present').innerText;
-        console.log("%c📖 LEYENDO TEXTO REAL...", "color: #2ecc71; font-weight: bold;");
-        voz = "Con gusto. En la diapositiva dice: " + textoReal; 
-    } else if (accion === "EXPLICAR") {
-        console.log("%c🧠 GENERANDO EXPLICACIÓN...", "color: #f39c12; font-weight: bold;");
-        // Aquí permitimos que 'voz' sea lo que la IA generó
+        voz = "En esta diapositiva dice: " + textoReal;
     }
     
+    // Si la acción es SALUDO o EXPLICAR, usamos directamente la 'voz' que generó la IA
     if (voz) responderConVoz(voz);
 }
 
@@ -126,10 +123,10 @@ document.body.onclick = () => {
             return `Índice ${i}: ${t.replace(/\n/g, " ")}`;
         }).join('\n');
         sistemaIniciado = true;
-        console.log("%c🗺️ MAPA GENERADO", "background: #2ecc71; color: white; padding: 2px 5px;");
-        responderConVoz("Hola, soy Robin. Estoy listo para navegar, leer o explicar conceptos.");
+        responderConVoz("Hola, soy Robin. Estoy listo para asistirle.");
     }
 };
+
 
 
 
