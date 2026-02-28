@@ -1,14 +1,20 @@
-// 1. CONFIGURACIÓN
+// 1. CONFIGURACIÓN INICIAL
 const API_KEY_GROQ = localStorage.getItem('GROQ_KEY');
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
+
+if (!API_KEY_GROQ) {
+    const userKey = prompt("Introduce tu API KEY de Groq:");
+    if (userKey) { localStorage.setItem('GROQ_KEY', userKey); location.reload(); }
+}
 
 let iaHablando = false;
 let sistemaIniciado = false;
 let mapaDiapositivas = ""; 
 
-// 2. SALIDA DE VOZ (TTS) - PRIORIDAD ALTA
+// 2. SALIDA DE VOZ (TTS) - AMABILIDAD CONSTANTE
 function responderConVoz(mensaje) {
     if (!mensaje) return;
+    console.log("🗣️ Robin dice:", mensaje);
     window.speechSynthesis.cancel();
     const lectura = new SpeechSynthesisUtterance(mensaje);
     lectura.lang = 'es-ES';
@@ -20,7 +26,7 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.speak(lectura);
 }
 
-// 3. RECONOCIMIENTO (STT)
+// 3. RECONOCIMIENTO DE VOZ (STT)
 const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 recognition.lang = 'es-ES';
 recognition.continuous = true;
@@ -30,16 +36,18 @@ recognition.onresult = async (event) => {
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
     
     if (text.includes("robin") || text.includes("robín") || text.includes("rubén")) {
-        console.log("🔔 LLAMADA:", text);
-        const comando = text.replace(/robin|robín|rubén/g, "").trim();
-        const slideTexto = document.querySelector('.reveal .present').innerText || "";
-        const respuestaIA = await consultarIA(comando, slideTexto);
+        console.log("🔔 LLAMADA DETECTADA:", text);
+        const comandoLimpio = text.replace(/robin|robín|rubén/g, "").trim();
+        const slideActual = document.querySelector('.reveal .present').innerText || "";
+        const respuestaIA = await consultarIA(comandoLimpio, slideActual);
         procesarAccion(respuestaIA);
     }
 };
 
-// 4. CEREBRO DE ROBIN (SIMPLIFICADO PARA ENTENDIMIENTO TOTAL)
-async function consultarIA(frase, contexto) {
+recognition.onend = () => { if (sistemaIniciado && !iaHablando) try { recognition.start(); } catch (e) {} };
+
+// 4. CEREBRO DE ROBIN (NAVEGACIÓN POR MAPA Y EXPLICACIÓN BREVE)
+async function consultarIA(frase, contextoActual) {
     try {
         const response = await fetch(API_URL, {
             method: "POST",
@@ -49,36 +57,39 @@ async function consultarIA(frase, contexto) {
                 messages: [
                     {
                         role: "system",
-                        content: `Eres Robin, asistente de Carlos. Tu misión es ayudar con la presentación.
-                        MAPA: ${mapaDiapositivas}
-                        REGLA: Portada/Inicio es siempre Diapositiva 0.
+                        content: `Eres Robin, un asistente de presentaciones amable y profesional. 
+                        No uses nombres propios para dirigirte al usuario.
                         
-                        FORMATO DE RESPUESTA:
-                        ACCION: [IR_A_X, SIGUIENTE, ATRAS, LEER, NADA]
-                        VOZ: [Tu respuesta amable o explicación breve]`
+                        MAPA DE LA PRESENTACIÓN (Úsalo para navegar):
+                        ${mapaDiapositivas}
+                        
+                        REGLAS:
+                        1. La diapositiva inicial/portada SIEMPRE es el índice 0.
+                        2. Si piden EXPLICAR: sé muy breve (máximo 25 palabras).
+                        3. FORMATO DE RESPUESTA OBLIGATORIO:
+                           ACCION: [IR_A_X, SIGUIENTE, ATRAS, LEER, NADA]
+                           VOZ: [Tu respuesta amable]`
                     },
-                    { role: "user", content: `Slide actual: ${contexto}. Carlos dice: ${frase}` }
+                    { role: "user", content: `Contexto: ${contextoActual}. Usuario dice: ${frase}` }
                 ],
-                temperature: 0.4
+                temperature: 0.3 // Equilibrio entre precisión y fluidez
             })
         });
         const data = await response.json();
         return data.choices[0].message.content;
-    } catch (e) { return "ACCION: NADA\nVOZ: Error de conexión."; }
+    } catch (e) { return "ACCION: NADA\nVOZ: Lo siento, tuve un problema de conexión."; }
 }
 
-// 5. CONTROLADOR DE ACCIONES
-function procesarAccion(raw) {
-    const lineas = raw.split('\n');
-    let accion = "NADA";
-    let voz = "";
+// 5. CONTROLADOR DE ACCIONES (PRECISIÓN TÉCNICA)
+function procesarAccion(rawResponse) {
+    const accionMatch = rawResponse.match(/ACCION:\s*(.*)/i);
+    const vozMatch = rawResponse.match(/VOZ:\s*(.*)/is);
 
-    lineas.forEach(l => {
-        if (l.toUpperCase().startsWith("ACCION:")) accion = l.replace(/ACCION:/i, "").trim().toUpperCase();
-        if (l.toUpperCase().startsWith("VOZ:")) voz = l.replace(/VOZ:/i, "").trim();
-    });
+    let accion = accionMatch ? accionMatch[1].trim().toUpperCase() : "NADA";
+    let voz = vozMatch ? vozMatch[1].trim() : "";
 
-    // Ejecutar movimiento
+    console.log("🤖 Acción procesada:", accion);
+
     if (accion.startsWith("IR_A_")) {
         const idx = parseInt(accion.split("_").pop());
         if (!isNaN(idx)) Reveal.slide(idx);
@@ -91,19 +102,24 @@ function procesarAccion(raw) {
         voz = voz + ". Dice lo siguiente: " + textoReal;
     }
 
-    // SIEMPRE HABLAR (Incluso si explica conclusiones o temas)
-    responderConVoz(voz || "Entendido, Carlos.");
+    if (voz) responderConVoz(voz);
 }
 
-// 6. INICIO
+// 6. ACTIVACIÓN Y GENERACIÓN DEL MAPA
 document.body.onclick = () => {
     if (!sistemaIniciado) {
         const slides = document.querySelectorAll('.reveal .slides section');
-        mapaDiapositivas = Array.from(slides).map((s, i) => `Slide ${i}: ${s.innerText.substring(0, 50)}`).join('\n');
+        // Genera el mapa dinámico para que Robin sepa qué hay en cada slide
+        mapaDiapositivas = Array.from(slides).map((s, i) => {
+            let titulo = s.querySelector('h1, h2, h3')?.innerText || s.innerText.substring(0, 30);
+            return `Índice ${i}: ${titulo.replace(/\n/g, " ")}`;
+        }).join('\n');
+        
         sistemaIniciado = true;
-        responderConVoz("Sistema listo. ¿Qué diapositiva vemos ahora?");
+        responderConVoz("Hola, soy Robin. He analizado el mapa de tu presentación y estoy listo para asistirle.");
     }
 };
+
 
 
 
