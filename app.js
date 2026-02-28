@@ -1,10 +1,13 @@
-// 1. CONFIGURACIÓN
+// 1. CONFIGURACIÓN Y ESTADO
 const API_KEY_GROQ = localStorage.getItem('GROQ_KEY');
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 if (!API_KEY_GROQ) {
     const userKey = prompt("Introduce tu API KEY de Groq:");
-    if (userKey) { localStorage.setItem('GROQ_KEY', userKey); location.reload(); }
+    if (userKey) {
+        localStorage.setItem('GROQ_KEY', userKey);
+        location.reload();
+    }
 }
 
 let iaHablando = false;
@@ -12,26 +15,17 @@ let sistemaIniciado = false;
 let mapaDiapositivas = ""; 
 
 // --- BOTONES DE RESPALDO ---
-const botones = document.createElement('div');
-botones.style = "position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; gap: 10px;";
-botones.innerHTML = `
-    <button id="btn-prev" style="padding: 10px 20px; cursor: pointer; border-radius: 5px; border: none; background: #333; color: white;">⬅️ ATRÁS</button>
-    <button id="btn-next" style="padding: 10px 20px; cursor: pointer; border-radius: 5px; border: none; background: #333; color: white;">SIGUIENTE ➡️</button>
+const contenedorBotones = document.createElement('div');
+contenedorBotones.style = "position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; gap: 10px;";
+contenedorBotones.innerHTML = `
+    <button id="btn-prev" style="padding: 12px 20px; cursor: pointer; border-radius: 8px; border: none; background: rgba(0,0,0,0.7); color: white; font-weight: bold; backdrop-filter: blur(5px);">⬅️ ATRÁS</button>
+    <button id="btn-next" style="padding: 12px 20px; cursor: pointer; border-radius: 8px; border: none; background: rgba(0,0,0,0.7); color: white; font-weight: bold; backdrop-filter: blur(5px);">SIGUIENTE ➡️</button>
 `;
-document.body.appendChild(botones);
+document.body.appendChild(contenedorBotones);
 document.getElementById('btn-prev').onclick = () => Reveal.prev();
 document.getElementById('btn-next').onclick = () => Reveal.next();
 
-// 2. RECONOCIMIENTO DE VOZ
-const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-recognition.lang = 'es-ES';
-recognition.continuous = true;
-
-recognition.onend = () => {
-    if (sistemaIniciado && !iaHablando) try { recognition.start(); } catch (e) {}
-};
-
-// 3. SALIDA DE VOZ
+// 2. SALIDA DE VOZ (TTS)
 function responderConVoz(mensaje) {
     console.log("🗣️ Robin dice:", mensaje);
     window.speechSynthesis.cancel();
@@ -45,25 +39,32 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.speak(lectura);
 }
 
-// 4. LÓGICA DE ESCUCHA
+// 3. RECONOCIMIENTO DE VOZ (STT)
+const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+recognition.lang = 'es-ES';
+recognition.continuous = true;
+
 recognition.onresult = async (event) => {
     if (iaHablando) return;
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
     
+    // Filtro de activación: Robin, Rubén, Rubín
     if (text.includes("robin") || text.includes("robín") || text.includes("rubín") || text.includes("rubén")) {
         console.log("🔔 LLAMADA DETECTADA:", text);
-        const comando = text.replace(/robin|robín|rubín|rubén/g, "").trim();
+        const comandoLimpio = text.replace(/robin|robín|rubín|rubén/g, "").trim();
         
-        const slideElement = document.querySelector('.reveal .present');
-        const slideTexto = slideElement ? slideElement.innerText : "";
-        
-        const respuestaIA = await consultarIA(comando, slideTexto);
+        const slideActual = document.querySelector('.reveal .present').innerText || "";
+        const respuestaIA = await consultarIA(comandoLimpio, slideActual);
         procesarAccion(respuestaIA);
     }
 };
 
-// 5. CONEXIÓN CON GROQ (PERSONALIDAD AMABLE)
-async function consultarIA(frase, contexto) {
+recognition.onend = () => {
+    if (sistemaIniciado && !iaHablando) try { recognition.start(); } catch (e) {}
+};
+
+// 5. CEREBRO DE ROBIN (FORZANDO ÍNDICE CERO)
+async function consultarIA(frase, contextoActual) {
     try {
         const response = await fetch(API_URL, {
             method: "POST",
@@ -73,59 +74,73 @@ async function consultarIA(frase, contexto) {
                 messages: [
                     {
                         role: "system",
-                        content: `Eres Robin, un asistente amable y carismático para Carlos.
-                        MAPA DE DIAPOSITIVAS: ${mapaDiapositivas}
+                        content: `Eres Robin, un asistente amable.
+                        REGLA DE ORO: La primera diapositiva (portada/inicio) es la DIAPOSITIVA 0.
                         
-                        TAREAS:
-                        1. Si pide LEER: responde "ACCION_LEER".
-                        2. Si pide IR a un tema: responde "IR_A_X" (X es el índice). La primera es 0.
-                        3. Si pide SIGUIENTE/ATRÁS: responde solo "SIGUIENTE" o "ATRAS".
-                        4. Para lo demás: conversa de forma muy amable y breve (máx 20 palabras).`
+                        MAPA DE LA PRESENTACIÓN:
+                        ${mapaDiapositivas}
+                        
+                        INSTRUCCIONES DE FORMATO:
+                        - Si piden la primera, el inicio, la portada o bienvenida: responde "ACCION: IR_A_0".
+                        - Si piden otro tema: responde "ACCION: IR_A_X" (X es el número del mapa).
+                        - Si piden leer: responde "ACCION: LEER".
+                        - Si piden siguiente/atrás: responde "ACCION: SIGUIENTE" o "ACCION: ATRAS".
+                        - VOZ: [Tu respuesta amable aquí]`
                     },
                     { role: "user", content: frase }
                 ],
-                temperature: 0.6
+                temperature: 0.2 // Precisión máxima
             })
         });
         const data = await response.json();
-        return data.choices[0].message.content.trim();
-    } catch (e) { return "ERROR"; }
+        return data.choices[0].message.content;
+    } catch (e) { return "ACCION: NADA\nVOZ: Error de conexión."; }
 }
 
-// 6. CONTROLADOR DE ACCIONES
-function procesarAccion(res) {
-    console.log("🤖 Robin decidió:", res);
-    const resUpper = res.toUpperCase();
+// 6. CONTROLADOR DE ACCIONES (VALIDACIÓN DE ÍNDICE)
+function procesarAccion(rawResponse) {
+    const lineas = rawResponse.split('\n');
+    let accion = "";
+    let voz = "";
 
-    if (resUpper === "ACCION_LEER") {
-        const texto = document.querySelector('.reveal .present').innerText;
-        responderConVoz("Con mucho gusto. Aquí dice: " + texto);
-        return;
-    }
+    lineas.forEach(l => {
+        if (l.toUpperCase().startsWith("ACCION:")) accion = l.replace(/ACCION:/i, "").trim().toUpperCase();
+        if (l.toUpperCase().startsWith("VOZ:")) voz = l.replace(/VOZ:/i, "").trim();
+    });
 
-    if (resUpper.includes("IR_A_")) {
-        const idx = parseInt(resUpper.split("_").pop());
+    console.log("🤖 Robin decidió:", accion);
+
+    // EJECUCIÓN TÉCNICA
+    if (accion.startsWith("IR_A_")) {
+        const idx = parseInt(accion.split("_").pop());
         if (!isNaN(idx)) {
-            Reveal.slide(idx);
-            responderConVoz("Hecho, Carlos. Ya estamos ahí.");
-            return;
+            console.log("🚀 Saltando a diapositiva:", idx);
+            Reveal.slide(idx); 
         }
+    } else if (accion === "LEER") {
+        const textoReal = document.querySelector('.reveal .present').innerText;
+        responderConVoz(voz + " . " + textoReal);
+        return;
+    } else if (accion === "SIGUIENTE") {
+        Reveal.next();
+    } else if (accion === "ATRAS") {
+        Reveal.prev();
     }
 
-    if (resUpper === "SIGUIENTE") { Reveal.next(); responderConVoz("Avanzamos."); }
-    else if (resUpper === "ATRAS") { Reveal.prev(); responderConVoz("Retrocedemos."); }
-    else if (res !== "ERROR") { responderConVoz(res); }
+    if (voz) responderConVoz(voz);
 }
 
 // 7. INICIO
 document.body.onclick = () => {
     if (!sistemaIniciado) {
         const slides = document.querySelectorAll('.reveal .slides section');
-        mapaDiapositivas = Array.from(slides).map((s, i) => `Slide ${i}: ${s.innerText.substring(0, 40)}`).join('\n');
+        mapaDiapositivas = Array.from(slides).map((s, i) => `Slide ${i}: ${s.innerText.substring(0, 60).replace(/\n/g, " ")}`).join('\n');
         sistemaIniciado = true;
-        responderConVoz("Hola Carlos, soy Robin. Estoy listo para acompañarte.");
+        console.log("🗺️ Mapa generado.");
+        responderConVoz("Hola Carlos, sistema listo. La primera diapositiva está cargada en el índice cero.");
     }
 };
+
 
 
 
