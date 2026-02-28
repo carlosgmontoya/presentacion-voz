@@ -14,7 +14,7 @@ let iaHablando = false;
 let sistemaIniciado = false;
 let mapaDiapositivas = ""; // Registro de títulos y contenido
 
-// --- BOTONES DE RESPALDO ---
+// --- BOTONES DE RESPALDO VISUALES ---
 const contenedorBotones = document.createElement('div');
 contenedorBotones.style = "position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; gap: 10px;";
 contenedorBotones.innerHTML = `
@@ -43,19 +43,29 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.cancel();
     const lectura = new SpeechSynthesisUtterance(mensaje);
     lectura.lang = 'es-ES';
-    lectura.onstart = () => { iaHablando = true; recognition.stop(); };
+    
+    lectura.onstart = () => {
+        iaHablando = true;
+        recognition.stop(); 
+    };
+    
     lectura.onend = () => {
         iaHablando = false;
-        setTimeout(() => { if (sistemaIniciado) try { recognition.start(); } catch (e) {} }, 700);
+        setTimeout(() => {
+            if (sistemaIniciado) {
+                try { recognition.start(); } catch (e) {}
+            }
+        }, 700);
     };
     window.speechSynthesis.speak(lectura);
 }
 
-// 4. LÓGICA DE ESCUCHA
+// 4. LÓGICA DE ESCUCHA CON FILTRO "ROBIN"
 recognition.onresult = async (event) => {
     if (iaHablando) return;
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
     
+    // Filtro para Robin y sus variantes fonéticas
     if (text.includes("robin") || text.includes("robín") || text.includes("rubín") || text.includes("rubén")) {
         console.log("🔔 LLAMADA DETECTADA:", text);
         const comandoLimpio = text.replace(/robin|robín|rubín|rubén/g, "").trim();
@@ -71,7 +81,7 @@ recognition.onresult = async (event) => {
     }
 };
 
-// 5. CONEXIÓN CON GROQ (NAVEGACIÓN POR MAPA)
+// 5. CONEXIÓN CON GROQ (NAVEGACIÓN POR MAPA E ÍNDICE CERO)
 async function consultarIA(frase, contextoActual) {
     try {
         const response = await fetch(API_URL, {
@@ -85,19 +95,19 @@ async function consultarIA(frase, contextoActual) {
                 messages: [
                     {
                         role: "system",
-                        content: `Eres Robin, asistente de voz. Tienes control total de la presentación.
-                        MAPA DE DIAPOSITIVAS DISPONIBLES:
+                        content: `Eres Robin, asistente de voz. Controlas esta presentación:
                         ${mapaDiapositivas}
                         
-                        REGLAS DE NAVEGACIÓN:
-                        1. Si el usuario pide ir a un tema, título o diapositiva específica: responde "MOVER_A_X" (donde X es el número de esa diapositiva).
-                        2. Si pide siguiente: responde "SIGUIENTE".
-                        3. Si pide atrás: responde "ATRAS".
-                        4. Si es una pregunta o saludo, conversa amable y breve (máx 25 palabras) usando el contexto actual: ${contextoActual}`
+                        REGLAS CRÍTICAS:
+                        1. La diapositiva inicial/primera/portada es SIEMPRE la Diapositiva 0.
+                        2. Si piden ir a un tema específico: responde "MOVER_A_X" (X es el número del mapa).
+                        3. Si piden la primera o el inicio: responde "MOVER_A_0".
+                        4. Si piden siguiente o atrás: responde "SIGUIENTE" o "ATRAS".
+                        5. Si es charla o duda: responde amable y breve (máx 25 palabras) usando: ${contextoActual}`
                     },
                     { role: "user", content: frase }
                 ],
-                temperature: 0.5
+                temperature: 0.3 // Precisión para comandos
             })
         });
         const data = await response.json();
@@ -105,17 +115,19 @@ async function consultarIA(frase, contextoActual) {
     } catch (e) { return "ERROR"; }
 }
 
-// 6. CONTROLADOR DE ACCIONES (SALTOS ESPECÍFICOS)
+// 6. CONTROLADOR DE ACCIONES (SALTOS ESPECÍFICOS CORREGIDOS)
 function procesarAccion(res) {
     console.log("🤖 Robin decidió:", res);
     const resUpper = res.toUpperCase();
 
-    // Lógica para saltar a una diapositiva específica por número
-    if (resUpper.startsWith("MOVER_A_")) {
-        const index = parseInt(resUpper.replace("MOVER_A_", ""));
+    // Lógica para saltar a una diapositiva específica (incluyendo la 0)
+    if (resUpper.includes("MOVER_A_")) {
+        const partes = resUpper.split("_");
+        const index = parseInt(partes[partes.length - 1]);
+        
         if (!isNaN(index)) {
             Reveal.slide(index);
-            responderConVoz("Entendido, vamos a esa sección.");
+            responderConVoz("Entendido, saltamos a esa diapositiva.");
             return;
         }
     }
@@ -135,7 +147,6 @@ function procesarAccion(res) {
 function generarMapa() {
     const slides = document.querySelectorAll('.reveal .slides section');
     mapaDiapositivas = Array.from(slides).map((s, i) => {
-        // Guardamos el número de diapositiva y los primeros 60 caracteres de su texto
         return `Diapositiva ${i}: "${s.innerText.substring(0, 60).replace(/\n/g, " ")}"`;
     }).join('\n');
     console.log("🗺️ Mapa de diapositivas generado.");
@@ -148,6 +159,7 @@ document.body.onclick = () => {
         responderConVoz("Hola Carlos, ya conozco todo el contenido. ¿A qué diapositiva quieres ir?");
     }
 };
+
 
 
 
