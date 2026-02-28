@@ -10,7 +10,6 @@ if (!API_KEY_GROQ) {
     }
 }
 
-// VARIABLES DE ESTADO
 let iaHablando = false;
 let sistemaIniciado = false;
 
@@ -21,7 +20,7 @@ recognition.continuous = true;
 
 recognition.onend = () => {
     if (sistemaIniciado && !iaHablando) {
-        try { recognition.start(); } catch (e) { console.log("Reintentando micro..."); }
+        try { recognition.start(); } catch (e) {}
     }
 };
 
@@ -48,28 +47,35 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.speak(lectura);
 }
 
-// 4. LÓGICA DE ESCUCHA CON PALABRA DE ACTIVACIÓN "SAM"
+// 4. LÓGICA DE ESCUCHA CON FILTRO DE NOMBRE "ROBIN"
 recognition.onresult = async (event) => {
     if (iaHablando) return; 
 
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
     
-    // FILTRO: Solo procesa si mencionas "Sam"
-    if (text.includes("sam")) {
-        console.log("🎤 Sam escuchó:", text);
+    // FILTRO ESTRICTO: Solo si mencionas a Robin o variaciones fonéticas comunes
+    if (text.includes("robin") || text.includes("robín") || text.includes("rubín")) {
+        console.log("🎤 Robin activado por:", text);
         
-        // Opcional: Limpiar el nombre "Sam" del comando para que no confunda a la IA
-        const comandoLimpio = text.replace("sam", "").trim();
+        // Limpiamos el nombre para que la IA reciba solo la orden
+        const comandoLimpio = text.replace(/robin|robín|rubín/g, "").trim();
         
+        // Si después de decir "Robin" no dijiste nada más, no enviamos nada a la IA
+        if (comandoLimpio.length < 2) {
+            responderConVoz("¿Dime?");
+            return;
+        }
+
         const contenidoSlide = document.querySelector('.reveal .present').innerText || "";
         const respuestaIA = await consultarIA(comandoLimpio, contenidoSlide);
         procesarAccion(respuestaIA);
     } else {
-        console.log("☁️ Ignorado (no dijiste Sam):", text);
+        // Esto aparecerá en consola pero NO activará a la IA
+        console.log("☁️ Ignorando conversación de fondo...");
     }
 };
 
-// 5. CONEXIÓN CON GROQ (LLAMA 3.3)
+// 5. CONEXIÓN CON GROQ
 async function consultarIA(frase, contexto) {
     try {
         const response = await fetch(API_URL, {
@@ -83,47 +89,38 @@ async function consultarIA(frase, contexto) {
                 messages: [
                     { 
                         role: "system", 
-                        content: `Tu nombre es Sam. Eres un asistente de presentación.
+                        content: `Tu nombre es Robin. Eres un asistente de voz.
                         REGLAS:
-                        - Comandos de navegación: responde SOLO "SIGUIENTE", "ATRAS" o "INICIO".
-                        - Preguntas: responde amable (máx 15 palabras).
-                        CONTENIDO ACTUAL: ${contexto}` 
+                        - Comandos: responde SOLO "SIGUIENTE", "ATRAS" o "INICIO".
+                        - Preguntas: responde amable y muy breve (máx 15 palabras).
+                        CONTENIDO: ${contexto}` 
                     },
                     { role: "user", content: frase }
                 ],
-                temperature: 0.2
+                temperature: 0.1 // Bajamos la temperatura para que sea más preciso
             })
         });
         const data = await response.json();
         return data.choices[0].message.content.trim().toUpperCase();
-    } catch (e) { 
-        return "ERROR"; 
-    }
+    } catch (e) { return "ERROR"; }
 }
 
-// 6. CONTROLADOR DE REVEAL.JS
+// 6. CONTROLADOR
 function procesarAccion(res) {
-    console.log("🤖 Sam decidió:", res);
-
-    if (res.includes("SIGUIENTE")) {
-        Reveal.next();
-        responderConVoz("Siguiente.");
-    } else if (res.includes("ATRAS")) {
-        Reveal.prev();
-        responderConVoz("Atrás.");
-    } else if (res.includes("INICIO")) {
-        Reveal.slide(0);
-        responderConVoz("Al inicio.");
-    } else if (res !== "ERROR") {
-        responderConVoz(res.toLowerCase());
-    }
+    console.log("🤖 Robin decidió:", res);
+    if (res.includes("SIGUIENTE")) { Reveal.next(); responderConVoz("Siguiente."); }
+    else if (res.includes("ATRAS")) { Reveal.prev(); responderConVoz("Atrás."); }
+    else if (res.includes("INICIO")) { Reveal.slide(0); responderConVoz("Al inicio."); }
+    else if (res !== "ERROR") { responderConVoz(res.toLowerCase()); }
 }
 
 // 7. ACTIVACIÓN INICIAL
 document.body.onclick = () => {
     if (!sistemaIniciado) {
         sistemaIniciado = true;
-        responderConVoz("Sam está listo. Llámame por mi nombre cuando me necesites.");
+        responderConVoz("Robin activo.");
+        console.log("✅ Sistema iniciado correctamente.");
     }
 };
+
 
