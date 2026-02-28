@@ -12,7 +12,7 @@ if (!API_KEY_GROQ) {
 
 let iaHablando = false;
 let sistemaIniciado = false;
-let mapaDiapositivas = ""; // Registro de títulos y contenido
+let mapaDiapositivas = ""; // Registro de títulos y contenido escaneado
 
 // --- BOTONES DE RESPALDO VISUALES ---
 const contenedorBotones = document.createElement('div');
@@ -60,12 +60,12 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.speak(lectura);
 }
 
-// 4. LÓGICA DE ESCUCHA CON FILTRO "ROBIN"
+// 4. LÓGICA DE ESCUCHA CON FILTRO DE NOMBRE
 recognition.onresult = async (event) => {
     if (iaHablando) return;
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
     
-    // Filtro para Robin y sus variantes fonéticas
+    // Filtro para Robin y sus variantes
     if (text.includes("robin") || text.includes("robín") || text.includes("rubín") || text.includes("rubén")) {
         console.log("🔔 LLAMADA DETECTADA:", text);
         const comandoLimpio = text.replace(/robin|robín|rubín|rubén/g, "").trim();
@@ -100,14 +100,14 @@ async function consultarIA(frase, contextoActual) {
                         
                         REGLAS CRÍTICAS:
                         1. La diapositiva inicial/primera/portada es SIEMPRE la Diapositiva 0.
-                        2. Si piden ir a un tema específico: responde "MOVER_A_X" (X es el número del mapa).
-                        3. Si piden la primera o el inicio: responde "MOVER_A_0".
+                        2. Si piden ir a un tema específico (ej: conclusiones, método): responde "IR_A_X" (X es el número del mapa).
+                        3. Si piden la primera, bienvenida o el inicio: responde SOLO "IR_A_0".
                         4. Si piden siguiente o atrás: responde "SIGUIENTE" o "ATRAS".
-                        5. Si es charla o duda: responde amable y breve (máx 25 palabras) usando: ${contextoActual}`
+                        5. Si es charla o duda: responde amable y breve (máx 25 palabras) usando el contexto de la slide: ${contextoActual}`
                     },
                     { role: "user", content: frase }
                 ],
-                temperature: 0.3 // Precisión para comandos
+                temperature: 0.3 // Equilibrio para precisión y fluidez
             })
         });
         const data = await response.json();
@@ -115,13 +115,13 @@ async function consultarIA(frase, contextoActual) {
     } catch (e) { return "ERROR"; }
 }
 
-// 6. CONTROLADOR DE ACCIONES (SALTOS ESPECÍFICOS CORREGIDOS)
+// 6. CONTROLADOR DE ACCIONES
 function procesarAccion(res) {
     console.log("🤖 Robin decidió:", res);
     const resUpper = res.toUpperCase();
 
-    // Lógica para saltar a una diapositiva específica (incluyendo la 0)
-    if (resUpper.includes("MOVER_A_")) {
+    // Salto directo a diapositiva específica (incluyendo la 0)
+    if (resUpper.includes("IR_A_")) {
         const partes = resUpper.split("_");
         const index = parseInt(partes[partes.length - 1]);
         
@@ -134,10 +134,10 @@ function procesarAccion(res) {
 
     if (resUpper.includes("SIGUIENTE")) {
         Reveal.next();
-        responderConVoz("Siguiente.");
+        responderConVoz("Claro, pasemos a la siguiente.");
     } else if (resUpper.includes("ATRAS")) {
         Reveal.prev();
-        responderConVoz("Atrás.");
+        responderConVoz("Regresando.");
     } else if (res !== "ERROR") {
         responderConVoz(res);
     }
@@ -147,18 +147,19 @@ function procesarAccion(res) {
 function generarMapa() {
     const slides = document.querySelectorAll('.reveal .slides section');
     mapaDiapositivas = Array.from(slides).map((s, i) => {
-        return `Diapositiva ${i}: "${s.innerText.substring(0, 60).replace(/\n/g, " ")}"`;
+        return `Diapositiva ${i}: "${s.innerText.substring(0, 80).replace(/\n/g, " ")}"`;
     }).join('\n');
     console.log("🗺️ Mapa de diapositivas generado.");
 }
 
 document.body.onclick = () => {
     if (!sistemaIniciado) {
-        generarMapa(); // Escanea el contenido al iniciar
+        generarMapa(); // Escanea el contenido al hacer el primer clic
         sistemaIniciado = true;
-        responderConVoz("Hola Carlos, ya conozco todo el contenido. ¿A qué diapositiva quieres ir?");
+        responderConVoz("Hola Carlos, ya conozco el contenido de tus diapositivas. ¿A cuál quieres ir?");
     }
 };
+
 
 
 
