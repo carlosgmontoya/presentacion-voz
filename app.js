@@ -1,4 +1,4 @@
-// 1. CONFIGURACIÓN Y ESTADO (Sin cambios)
+// 1. CONFIGURACIÓN Y ESTADO
 const API_KEY_GROQ = localStorage.getItem('GROQ_KEY');
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
@@ -6,7 +6,7 @@ let iaHablando = false;
 let sistemaIniciado = false;
 let mapaDiapositivas = ""; 
 
-// 2. BOTONES DE RESPALDO (Sin cambios)
+// 2. BOTONES DE RESPALDO
 const contenedorBotones = document.createElement('div');
 contenedorBotones.style = "position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; gap: 10px;";
 contenedorBotones.innerHTML = `
@@ -17,7 +17,7 @@ document.body.appendChild(contenedorBotones);
 document.getElementById('btn-prev').onclick = () => Reveal.prev();
 document.getElementById('btn-next').onclick = () => Reveal.next();
 
-// 3. SALIDA DE VOZ (TTS) (Sin cambios)
+// 3. SALIDA DE VOZ (TTS)
 function responderConVoz(mensaje) {
     if (!mensaje) return;
     console.log("%c🗣️ ROBIN DICE: " + mensaje, "color: #9b59b6; font-weight: bold;");
@@ -32,7 +32,7 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.speak(lectura);
 }
 
-// 4. RECONOCIMIENTO DE VOZ (STT) (Sin cambios)
+// 4. RECONOCIMIENTO DE VOZ (STT)
 const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 recognition.lang = 'es-ES';
 recognition.continuous = true;
@@ -47,13 +47,13 @@ recognition.onresult = async (event) => {
         const comandoLimpio = text.replace(/robin|robín|rubén/g, "").trim();
         const slideActual = document.querySelector('.reveal .present').innerText || "";
         const respuestaIA = await consultarIA(comandoLimpio, slideActual);
-        procesarAccion(respuestaIA, text); // Se pasa el texto escuchado para el blindaje
+        procesarAccion(respuestaIA, text); 
     }
 };
 
 recognition.onend = () => { if (sistemaIniciado && !iaHablando) try { recognition.start(); } catch (e) {} };
 
-// 5. CEREBRO DE ROBIN (Sin cambios en lógica)
+// 5. CEREBRO DE ROBIN (AJUSTE: DISTINCIÓN ENTRE LEER Y EXPLICAR)
 async function consultarIA(frase, contextoActual) {
     try {
         const response = await fetch(API_URL, {
@@ -64,14 +64,16 @@ async function consultarIA(frase, contextoActual) {
                 messages: [
                     {
                         role: "system",
-                        content: `Eres Robin, asistente amable. Si piden LEER, usa ACCION: LEER.
-                        REGLA: Primera slide es 0.
+                        content: `Eres Robin, asistente amable. 
+                        - Si piden LEER: Usa ACCION: LEER.
+                        - Si piden EXPLICAR algo: Usa ACCION: EXPLICAR y da una respuesta breve y experta.
+                        - Si piden NAVEGAR: Usa IR_A_0 (inicio), SIGUIENTE o ATRAS.
                         MAPA: ${mapaDiapositivas}
-                        FORMATO: ACCION: [SIGUIENTE, ATRAS, IR_A_X, LEER, NADA] / VOZ: [Respuesta]`
+                        FORMATO: ACCION: [SIGUIENTE, ATRAS, IR_A_X, LEER, EXPLICAR, NADA] / VOZ: [Tu respuesta]`
                     },
                     { role: "user", content: `Contexto: ${contextoActual}. Usuario: ${frase}` }
                 ],
-                temperature: 0.1
+                temperature: 0.2
             })
         });
         const data = await response.json();
@@ -79,15 +81,18 @@ async function consultarIA(frase, contextoActual) {
     } catch (e) { return "ACCION: NADA\nVOZ: Error de conexión."; }
 }
 
-// 6. CONTROLADOR DE ACCIONES (EL AJUSTE ESTÁ AQUÍ)
+// 6. CONTROLADOR DE ACCIONES (LÓGICA HÍBRIDA)
 function procesarAccion(rawResponse, textoEscuchado) {
     const accionMatch = rawResponse.match(/ACCION:\s*([\w_]+)/i);
     const vozMatch = rawResponse.match(/VOZ:\s*(.*)/is);
     let accion = accionMatch ? accionMatch[1].trim().toUpperCase() : "NADA";
     let voz = vozMatch ? vozMatch[1].trim() : "";
 
-    // BLINDAJE: Si el usuario pronunció "leer", forzamos la acción técnica
-    if (textoEscuchado.toLowerCase().includes("leer") || textoEscuchado.toLowerCase().includes("lea")) {
+    // BLINDAJE INTELIGENTE
+    const quiereExplicacion = textoEscuchado.includes("explica") || textoEscuchado.includes("qué es") || textoEscuchado.includes("que es");
+    const quiereLectura = textoEscuchado.includes("leer") || textoEscuchado.includes("lea");
+
+    if (quiereLectura && !quiereExplicacion) {
         accion = "LEER";
     }
 
@@ -101,16 +106,18 @@ function procesarAccion(rawResponse, textoEscuchado) {
     } else if (accion === "ATRAS") {
         Reveal.prev();
     } else if (accion === "LEER") {
-        // Captura directa del texto en pantalla para evitar que Robin invente
         const textoReal = document.querySelector('.reveal .present').innerText;
-        console.log("%c📖 LEYENDO DIAPOSITIVA ACTUAL...", "color: #2ecc71; font-weight: bold;");
-        voz = "Con gusto. En esta diapositiva dice: " + textoReal; 
+        console.log("%c📖 LEYENDO TEXTO REAL...", "color: #2ecc71; font-weight: bold;");
+        voz = "Con gusto. En la diapositiva dice: " + textoReal; 
+    } else if (accion === "EXPLICAR") {
+        console.log("%c🧠 GENERANDO EXPLICACIÓN...", "color: #f39c12; font-weight: bold;");
+        // Aquí permitimos que 'voz' sea lo que la IA generó
     }
     
     if (voz) responderConVoz(voz);
 }
 
-// 7. INICIO (Sin cambios)
+// 7. INICIO
 document.body.onclick = () => {
     if (!sistemaIniciado) {
         const slides = document.querySelectorAll('.reveal .slides section');
@@ -119,9 +126,11 @@ document.body.onclick = () => {
             return `Índice ${i}: ${t.replace(/\n/g, " ")}`;
         }).join('\n');
         sistemaIniciado = true;
-        responderConVoz("Hola, soy Robin. Estoy listo.");
+        console.log("%c🗺️ MAPA GENERADO", "background: #2ecc71; color: white; padding: 2px 5px;");
+        responderConVoz("Hola, soy Robin. Estoy listo para navegar, leer o explicar conceptos.");
     }
 };
+
 
 
 
