@@ -6,7 +6,7 @@ let iaHablando = false;
 let sistemaIniciado = false;
 let mapaDiapositivas = ""; 
 
-// 2. BOTONES DE RESPALDO
+// 2. BOTONES DE RESPALDO (Sin cambios)
 const contenedorBotones = document.createElement('div');
 contenedorBotones.style = "position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; gap: 10px;";
 contenedorBotones.innerHTML = `
@@ -53,7 +53,7 @@ recognition.onresult = async (event) => {
 
 recognition.onend = () => { if (sistemaIniciado && !iaHablando) try { recognition.start(); } catch (e) {} };
 
-// 5. CEREBRO DE ROBIN (AMABILIDAD + BREVEDAD)
+// 5. CEREBRO DE ROBIN (RESTABLECIDA LA INTELIGENCIA)
 async function consultarIA(frase, contextoActual) {
     try {
         const response = await fetch(API_URL, {
@@ -64,19 +64,19 @@ async function consultarIA(frase, contextoActual) {
                 messages: [
                     {
                         role: "system",
-                        content: `Eres Robin, un asistente amable y profesional. 
+                        content: `Eres Robin, asistente amable y experto. 
                         REGLAS:
-                        1. Sé muy breve (máximo 2 frases).
-                        2. Si saludan: Acción SALUDO. Responde con calidez.
+                        1. Sé breve (máximo 2 frases).
+                        2. Si saludan o preguntan "¿Cómo estás?": Acción SALUDO.
                         3. Si piden LEER: Acción LEER.
-                        4. Si preguntan CONCEPTOS: Acción EXPLICAR.
+                        4. Si preguntan "¿Qué es?", "Explícame", o "Por qué": Acción EXPLICAR.
                         5. Navegación: IR_A_0 (inicio), SIGUIENTE, ATRAS.
                         MAPA: ${mapaDiapositivas}
-                        FORMATO: ACCION: [COMANDO] / VOZ: [Respuesta]`
+                        FORMATO: ACCION: [COMANDO] / VOZ: [Tu respuesta]`
                     },
                     { role: "user", content: `Contexto: ${contextoActual}. Usuario: ${frase}` }
                 ],
-                temperature: 0.2
+                temperature: 0.3
             })
         });
         const data = await response.json();
@@ -84,19 +84,23 @@ async function consultarIA(frase, contextoActual) {
     } catch (e) { return "ACCION: NADA\nVOZ: Error de conexión."; }
 }
 
-// 6. CONTROLADOR DE ACCIONES
+// 6. CONTROLADOR DE ACCIONES (EQUILIBRIO ENTRE LECTURA Y EXPLICACIÓN)
 function procesarAccion(rawResponse, textoEscuchado) {
     const accionMatch = rawResponse.match(/ACCION:\s*([\w_]+)/i);
     const vozMatch = rawResponse.match(/VOZ:\s*(.*)/is);
     let accion = accionMatch ? accionMatch[1].trim().toUpperCase() : "NADA";
     let voz = vozMatch ? vozMatch[1].trim() : "";
 
-    // Blindaje de lectura técnica
-    if ((textoEscuchado.includes("leer") || textoEscuchado.includes("lea")) && !textoEscuchado.includes("explica")) {
+    // Blindaje de intención: Si pregunta "qué es", forzamos EXPLICAR
+    const esPreguntaAbierta = textoEscuchado.includes("explica") || textoEscuchado.includes("qué es") || textoEscuchado.includes("que es");
+    
+    if (esPreguntaAbierta) {
+        accion = "EXPLICAR";
+    } else if (textoEscuchado.includes("leer") || textoEscuchado.includes("lea")) {
         accion = "LEER";
     }
 
-    console.log("%c🤖 IA DECIDIÓ: " + accion, "color: #3498db; font-weight: bold;");
+    console.log("%c🤖 ROBIN DECIDIÓ: " + accion, "color: #3498db; font-weight: bold;");
 
     if (accion.startsWith("IR_A_")) {
         const idx = parseInt(accion.split("_").pop());
@@ -106,11 +110,15 @@ function procesarAccion(rawResponse, textoEscuchado) {
     } else if (accion === "ATRAS") {
         Reveal.prev();
     } else if (accion === "LEER") {
+        // Lectura fiel del texto en pantalla
         const textoReal = document.querySelector('.reveal .present').innerText;
-        voz = "En esta diapositiva dice: " + textoReal;
+        console.log("%c📖 LEYENDO DIAPOSITIVA ACTUAL...", "color: #2ecc71; font-weight: bold;");
+        voz = "En esta diapositiva dice: " + textoReal; 
+    } else if (accion === "EXPLICAR") {
+        console.log("%c🧠 GENERANDO EXPLICACIÓN CORTA...", "color: #f39c12; font-weight: bold;");
+        // Se usa la respuesta generada por la IA
     }
     
-    // Si la acción es SALUDO o EXPLICAR, usamos directamente la 'voz' que generó la IA
     if (voz) responderConVoz(voz);
 }
 
@@ -123,9 +131,10 @@ document.body.onclick = () => {
             return `Índice ${i}: ${t.replace(/\n/g, " ")}`;
         }).join('\n');
         sistemaIniciado = true;
-        responderConVoz("Hola, soy Robin. Estoy listo para asistirle.");
+        responderConVoz("Hola, soy Robin. Estoy listo para ayudarte con la presentación.");
     }
 };
+
 
 
 
