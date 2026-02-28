@@ -11,7 +11,7 @@ let iaHablando = false;
 let sistemaIniciado = false;
 let mapaDiapositivas = ""; 
 
-// --- ➕ BOTONES DE RESPALDO (Vuelven a estar aquí) ---
+// 2. BOTONES DE RESPALDO
 const contenedorBotones = document.createElement('div');
 contenedorBotones.style = "position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; gap: 10px;";
 contenedorBotones.innerHTML = `
@@ -19,10 +19,10 @@ contenedorBotones.innerHTML = `
     <button id="btn-next" style="padding: 12px 20px; cursor: pointer; border-radius: 8px; border: none; background: rgba(0,0,0,0.7); color: white; font-weight: bold; backdrop-filter: blur(5px);">SIGUIENTE ➡️</button>
 `;
 document.body.appendChild(contenedorBotones);
-document.getElementById('btn-prev').onclick = () => { console.log("🔘 Botón Atrás presionado"); Reveal.prev(); };
-document.getElementById('btn-next').onclick = () => { console.log("🔘 Botón Siguiente presionado"); Reveal.next(); };
+document.getElementById('btn-prev').onclick = () => { console.log("🔘 Botón Atrás"); Reveal.prev(); };
+document.getElementById('btn-next').onclick = () => { console.log("🔘 Botón Siguiente"); Reveal.next(); };
 
-// 2. SALIDA DE VOZ (TTS)
+// 3. SALIDA DE VOZ (TTS)
 function responderConVoz(mensaje) {
     if (!mensaje) return;
     console.log("%c🗣️ ROBIN DICE: " + mensaje, "color: #9b59b6; font-weight: bold;");
@@ -37,7 +37,7 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.speak(lectura);
 }
 
-// 3. RECONOCIMIENTO DE VOZ (STT)
+// 4. RECONOCIMIENTO DE VOZ (STT)
 const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 recognition.lang = 'es-ES';
 recognition.continuous = true;
@@ -48,7 +48,7 @@ recognition.onresult = async (event) => {
     console.log("%c👂 ESCUCHADO: " + text, "color: #7f8c8d; font-style: italic;");
 
     if (text.includes("robin") || text.includes("robín") || text.includes("rubén")) {
-        console.log("%c🔔 LLAMADA DETECTADA: " + text, "color: #f1c40f; font-weight: bold;");
+        console.log("%c🔔 LLAMADA DETECTADA: " + text, "color: #f1c40f; font-weight: bold; border-left: 4px solid #f1c40f; padding-left: 5px;");
         const comandoLimpio = text.replace(/robin|robín|rubén/g, "").trim();
         const slideActual = document.querySelector('.reveal .present').innerText || "";
         const respuestaIA = await consultarIA(comandoLimpio, slideActual);
@@ -58,7 +58,7 @@ recognition.onresult = async (event) => {
 
 recognition.onend = () => { if (sistemaIniciado && !iaHablando) try { recognition.start(); } catch (e) {} };
 
-// 4. CEREBRO DE ROBIN (AMABILIDAD Y MAPA)
+// 5. CEREBRO DE ROBIN (AJUSTE DE LECTURA PRECISA)
 async function consultarIA(frase, contextoActual) {
     try {
         const response = await fetch(API_URL, {
@@ -69,14 +69,14 @@ async function consultarIA(frase, contextoActual) {
                 messages: [
                     {
                         role: "system",
-                        content: `Eres Robin, un asistente amable. No uses nombres de personas.
-                        REGLA DE ORO: La primera diapositiva (inicio) es la 0.
+                        content: `Eres Robin, asistente amable. No uses nombres.
+                        REGLA DE ORO: Si el usuario pide LEER, responde únicamente con la acción LEER y una frase de cortesía mínima.
                         MAPA: ${mapaDiapositivas}
-                        FORMATO: ACCION: [IR_A_X, SIGUIENTE, ATRAS, LEER, NADA] / VOZ: [Tu respuesta]`
+                        FORMATO: ACCION: [SIGUIENTE, ATRAS, IR_A_X, LEER, NADA] / VOZ: [Tu respuesta]`
                     },
-                    { role: "user", content: `Contexto: ${contextoActual}. Comando: ${frase}` }
+                    { role: "user", content: `Contexto: ${contextoActual}. Usuario: ${frase}` }
                 ],
-                temperature: 0.3
+                temperature: 0.2
             })
         });
         const data = await response.json();
@@ -84,9 +84,9 @@ async function consultarIA(frase, contextoActual) {
     } catch (e) { return "ACCION: NADA\nVOZ: Error de conexión."; }
 }
 
-// 5. CONTROLADOR DE ACCIONES - REGISTRO TÉCNICO
+// 6. CONTROLADOR DE ACCIONES
 function procesarAccion(rawResponse) {
-    const accionMatch = rawResponse.match(/ACCION:\s*(.*)/i);
+    const accionMatch = rawResponse.match(/ACCION:\s*(\w+)/i);
     const vozMatch = rawResponse.match(/VOZ:\s*(.*)/is);
     let accion = accionMatch ? accionMatch[1].trim().toUpperCase() : "NADA";
     let voz = vozMatch ? vozMatch[1].trim() : "";
@@ -106,20 +106,21 @@ function procesarAccion(rawResponse) {
         console.log("%c🚀 EJECUTANDO: Reveal.prev()", "color: #e67e22; font-weight: bold;");
         Reveal.prev();
     } else if (accion === "LEER") {
+        // AJUSTE: Extraemos el texto real y evitamos que Robin invente contenido
         const textoReal = document.querySelector('.reveal .present').innerText;
-        console.log("%c📖 LEYENDO DIAPOSITIVA...", "color: #2ecc71; font-weight: bold;");
-        voz = voz + ". Dice lo siguiente: " + textoReal; 
+        console.log("%c📖 LEYENDO CONTENIDO REAL...", "color: #2ecc71; font-weight: bold;");
+        voz = "Con gusto. En esta diapositiva dice: " + textoReal; 
     }
     if (voz) responderConVoz(voz);
 }
 
-// 6. INICIO
+// 7. INICIO
 document.body.onclick = () => {
     if (!sistemaIniciado) {
         const slides = document.querySelectorAll('.reveal .slides section');
         mapaDiapositivas = Array.from(slides).map((s, i) => {
-            let titulo = s.querySelector('h1, h2, h3')?.innerText || s.innerText.substring(0, 40);
-            return `Índice ${i}: ${titulo.replace(/\n/g, " ")}`;
+            let t = s.querySelector('h1, h2, h3')?.innerText || s.innerText.substring(0, 40);
+            return `Índice ${i}: ${t.replace(/\n/g, " ")}`;
         }).join('\n');
         sistemaIniciado = true;
         console.log("%c🗺️ MAPA GENERADO", "background: #2ecc71; color: white; padding: 2px 5px;");
