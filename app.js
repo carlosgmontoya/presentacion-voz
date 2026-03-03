@@ -15,15 +15,15 @@ let sistemaIniciado = false;
 let mapaDiapositivas = ""; 
 
 // 2. BOTONES DE RESPALDO
-const contenedorBotones = document.createElement('div');
-contenedorBotones.style = "position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; gap: 10px;";
-contenedorBotones.innerHTML = `
-    <button id="btn-prev" style="padding: 12px 20px; cursor: pointer; border-radius: 8px; border: none; background: rgba(0,0,0,0.7); color: white; font-weight: bold; backdrop-filter: blur(5px);">⬅️ ATRÁS</button>
-    <button id="btn-next" style="padding: 12px 20px; cursor: pointer; border-radius: 8px; border: none; background: rgba(0,0,0,0.7); color: white; font-weight: bold; backdrop-filter: blur(5px);">SIGUIENTE ➡️</button>
-`;
-document.body.appendChild(contenedorBotones);
-document.getElementById('btn-prev').onclick = () => Reveal.prev();
-document.getElementById('btn-next').onclick = () => Reveal.next();
+//const contenedorBotones = document.createElement('div');
+//contenedorBotones.style = "position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; gap: 10px;";
+//contenedorBotones.innerHTML = `
+//    <button id="btn-prev" style="padding: 12px 20px; cursor: pointer; border-radius: 8px; border: none; background: rgba(0,0,0,0.7); color: white; font-weight: bold; backdrop-filter: blur(5px);">⬅️ ATRÁS</button>
+//    <button id="btn-next" style="padding: 12px 20px; cursor: pointer; border-radius: 8px; border: none; background: rgba(0,0,0,0.7); color: white; font-weight: bold; backdrop-filter: blur(5px);">SIGUIENTE ➡️</button>
+//`;
+//document.body.appendChild(contenedorBotones);
+//document.getElementById('btn-prev').onclick = () => Reveal.prev();
+//document.getElementById('btn-next').onclick = () => Reveal.next();
 
 // 3. SALIDA DE VOZ (TTS)
 function responderConVoz(mensaje) {
@@ -148,6 +148,7 @@ document.body.onclick = () => {
         responderConVoz("Hola, soy José. Estoy listo para ayudarte con la presentación.");
     }
 };
+
 
 
 
