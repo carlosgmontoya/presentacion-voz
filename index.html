@@ -12,7 +12,6 @@
             --udb-amarillo: #ffcc00;
         }
 
-        /* Línea gráfica superior */
         .header-line {
             position: fixed;
             top: 0;
@@ -22,7 +21,6 @@
             z-index: 10;
         }
 
-        /* Logo institucional */
         .udb-logo {
             position: fixed;
             top: 25px;
@@ -31,7 +29,6 @@
             z-index: 10;
         }
 
-        /* Línea gráfica inferior con nombre */
         .footer-bar {
             position: fixed;
             bottom: 0;
@@ -50,6 +47,38 @@
         }
 
         .reveal h1 { color: var(--udb-azul); text-transform: none; }
+        .reveal h2 { color: var(--udb-azul); font-size: 1.3em; margin-bottom: 20px; }
+        
+        .container-flex {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            align-items: stretch;
+        }
+
+        .column {
+            flex: 1;
+            background: #f4f4f4;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid var(--udb-amarillo);
+        }
+
+        .link-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: var(--udb-azul);
+            color: white !important;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 0.6em;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        .reveal ul { font-size: 0.65em; line-height: 1.4; }
+        .reveal p { font-size: 0.7em; }
+        .highlight { color: var(--udb-azul); font-weight: bold; }
     </style>
 </head>
 <body>
@@ -59,26 +88,90 @@
 
     <div class="reveal">
         <div class="slides">
+            
             <section>
                 <h1>La IA y el aprendizaje autónomo</h1>
                 <p>Di <strong>"José, Siguiente"</strong> para empezar</p>
-                <p style="font-size: 0.6em; color: gray;">Haz clic en la pantalla para activar el sistema</p>
+                <p style="font-size: 0.5em; color: gray;">Sistemas de Tutoría Inteligente</p>
             </section>
             
             <section>
-                <h1>Estudio dirigido</h1>
-                <p>Propuesta de prompt y herramienta.</p>
+                <section>
+                    <h1>Estudio Dirigido</h1>
+                    <h2 class="highlight">Estrategia: Tutoría Autogestionada</h2>
+                    <ul>
+                        <li><strong>Aprendizaje Activo:</strong> El estudiante construye significados mediante la reflexión constante.</li>
+                        <li><strong>Rol Docente:</strong> Orientación estratégica basada en necesidades identificadas por el alumno.</li>
+                        <li><strong>Personalización:</strong> Experiencias de autoaprendizaje que fortalecen el "aprender a aprender".</li>
+                        <li><strong>Integración:</strong> Uso de IA como refuerzo y retroalimentación, no como sustituto.</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h2>Recurso: Tutor IA (Cálculo Integral)</h2>
+                    <div class="container-flex">
+                        <div class="column">
+                            <ul>
+                                <li><strong>Metodología ELI6:</strong> Explicación intuitiva de conceptos complejos.</li>
+                                <li><strong>Estructura:</strong> Teoría formal, procedimientos paso a paso y videos de Khan Academy.</li>
+                                <li><strong>Práctica:</strong> Ejercicios guiados con espera de respuesta del alumno.</li>
+                            </ul>
+                            <a href="https://chatgpt.com/share/69a612a3-3b14-8007-a97e-d11a83d35eac" target="_blank" class="link-button">Abrir Tutor en ChatGPT</a>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h2>Recurso: Tutor José (Evaluación)</h2>
+                    <div class="container-flex">
+                        <div class="column">
+                            <ul>
+                                <li><strong>Identificación:</strong> Registro obligatorio de Nombre e ID.</li>
+                                <li><strong>Dinámica:</strong> Examen de 3 preguntas al azar desde fuentes oficiales.</li>
+                                <li><strong>Automatización:</strong> Calificación y registro vía Make.com.</li>
+                            </ul>
+                            <a href="https://notebooklm.google.com/notebook/196d9e5d-bd40-46ef-bcbc-1836069fee20" target="_blank" class="link-button">Abrir en NotebookLM</a>
+                        </div>
+                    </div>
+                </section>
+            </section>
+
+            <section>
+                <h1>Recomendaciones de Uso</h1>
+                <div class="container-flex" style="font-size: 0.8em;">
+                    <div class="column">
+                        <p class="highlight">Trabajo Autónomo</p>
+                        <ul>
+                            <li>Determinar temas previos al encuentro.</li>
+                            <li>Realizar autoevaluación constante.</li>
+                        </ul>
+                    </div>
+                    <div class="column">
+                        <p class="highlight">Sesión Sincrónica</p>
+                        <ul>
+                            <li>Consultar errores detectados por la IA.</li>
+                            <li>Refuerzo y práctica guiada docente.</li>
+                        </ul>
+                    </div>
+                </div>
             </section>
 
             <section>
                 <h1>Método de casos</h1>
-                <p>Propuesta metodológica.</p>
+                <p>Propuesta metodológica para la integración curricular:</p>
+                <ul>
+                    <li>El estudiante construye su aprendizaje activamente.</li>
+                    <li>El docente orienta según necesidades identificadas durante la interacción con la IA.</li>
+                    <li>Fomento de procesos metacognitivos para interpretar y resolver problemas reales.</li>
+                </ul>
             </section>
             
             <section>
                 <h1>Conclusiones Finales</h1>
-                <p>Gracias por su atención.</p>
+                <p>La IA promueve procesos metacognitivos y autonomía sin sustituir la mediación pedagógica.</p>
+                <h2 style="color: var(--udb-amarillo)">¡Gracias por su atención!</h2>
             </section>
+
         </div>
     </div>
 
@@ -86,14 +179,16 @@
     <script>
         Reveal.initialize({ 
             hash: true,
-            controls: false, // Ocultamos flechas para forzar el uso de la voz
+            controls: true, 
             progress: true,
-            center: true
+            center: true,
+            transition: 'slide'
         });
     </script>
     <script src="app.js"></script>
 </body>
 </html>
+
 
 
 
