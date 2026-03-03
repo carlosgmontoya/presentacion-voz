@@ -1,7 +1,15 @@
-// 1. CONFIGURACIÓN Y ESTADO
-const API_KEY_GROQ = localStorage.getItem('GROQ_KEY');
-const API_URL = "https://api.groq.com/openai/v1/chat/completions";
+// 1. CONFIGURACIÓN Y ESTADO (Mejorado para pedir API KEY)
+let API_KEY_GROQ = localStorage.getItem('GROQ_KEY');
 
+// Si no hay llave, pedirla al usuario inmediatamente
+if (!API_KEY_GROQ || API_KEY_GROQ === "null" || API_KEY_GROQ === "") {
+    API_KEY_GROQ = prompt("Por favor, introduce tu API KEY de Groq para activar a José:");
+    if (API_KEY_GROQ) {
+        localStorage.setItem('GROQ_KEY', API_KEY_GROQ);
+    }
+}
+
+const API_URL = "https://api.groq.com/openai/v1/chat/completions";
 let iaHablando = false;
 let sistemaIniciado = false;
 let mapaDiapositivas = ""; 
@@ -53,7 +61,7 @@ recognition.onresult = async (event) => {
 
 recognition.onend = () => { if (sistemaIniciado && !iaHablando) try { recognition.start(); } catch (e) {} };
 
-// 5. CEREBRO DE JOSÉ (RESTAURADO)
+// 5. CEREBRO DE JOSÉ (RESTAURADO CON BLINDAJE 401)
 async function consultarIA(frase, contextoActual) {
     try {
         const response = await fetch(API_URL, {
@@ -66,7 +74,7 @@ async function consultarIA(frase, contextoActual) {
                         role: "system",
                         content: `Eres José, asistente amable y experto. 
                         REGLAS:
-                        1. Sé muy breve (máximo 2 frases). 
+                        1. Sé muy breve (máximo 2 frases).
                         2. Si saludan o preguntan "¿Cómo estás?": Acción SALUDO.
                         3. Si piden LEER: Acción LEER.
                         4. Si preguntan "¿Qué es?", "Explícame", o "Por qué": Acción EXPLICAR.
@@ -79,6 +87,13 @@ async function consultarIA(frase, contextoActual) {
                 temperature: 0.3
             })
         });
+
+        // Manejo del error 401 (Llave incorrecta)
+        if (response.status === 401) {
+            localStorage.removeItem('GROQ_KEY');
+            return "ACCION: NADA\nVOZ: La llave es incorrecta. Recarga la página para introducir una nueva.";
+        }
+
         const data = await response.json();
         return data.choices[0].message.content;
     } catch (e) { return "ACCION: NADA\nVOZ: Error de conexión."; }
@@ -116,7 +131,6 @@ function procesarAccion(rawResponse, textoEscuchado) {
         voz = "En esta diapositiva dice: " + textoReal; 
     } else if (accion === "EXPLICAR" || accion === "SALUDO") {
         if (accion === "EXPLICAR") console.log("%c🧠 GENERANDO EXPLICACIÓN...", "color: #f39c12; font-weight: bold;");
-        // Se usa la voz generada por la IA para explicar o saludar
     }
     
     if (voz) responderConVoz(voz);
