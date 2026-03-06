@@ -1,9 +1,12 @@
 // 1. CONFIGURACIÓN Y ESTADO
 let API_KEY_GROQ = localStorage.getItem('GROQ_KEY');
 
+// Pedir la llave si no existe
 if (!API_KEY_GROQ || API_KEY_GROQ === "null" || API_KEY_GROQ === "") {
-    API_KEY_GROQ = prompt("Por favor, introduce tu API KEY de Groq:");
-    if (API_KEY_GROQ) localStorage.setItem('GROQ_KEY', API_KEY_GROQ);
+    API_KEY_GROQ = prompt("Por favor, introduce tu API KEY de Groq para activar a José:");
+    if (API_KEY_GROQ) {
+        localStorage.setItem('GROQ_KEY', API_KEY_GROQ);
+    }
 }
 
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -11,28 +14,51 @@ let iaHablando = false;
 let sistemaIniciado = false;
 let mapaDiapositivas = ""; 
 
-// 2. SALIDA DE VOZ (TTS)
+// 2. FUNCIÓN DE RESALTADO VISUAL (Puntero de voz)
+function resaltarTexto(palabra) {
+    const slideActual = document.querySelector('.reveal .present');
+    if (!slideActual) return;
+
+    const contenidoOriginal = slideActual.innerHTML;
+    // Busca la palabra ignorando mayúsculas/minúsculas
+    const regex = new RegExp(`(${palabra})`, 'gi');
+    
+    // Aplica un estilo de resaltado temporal
+    slideActual.innerHTML = contenidoOriginal.replace(regex, `<span class="voice-highlight" style="background-color: #ffcc00; color: #000; padding: 0 5px; border-radius: 4px; box-shadow: 0 0 10px #ffcc00;">$1</span>`);
+    
+    // Quitar el resaltado tras 5 segundos para limpiar la vista
+    setTimeout(() => {
+        slideActual.innerHTML = contenidoOriginal;
+    }, 5000);
+}
+
+// 3. SALIDA DE VOZ (TTS)
 function responderConVoz(mensaje) {
     if (!mensaje) return;
+    console.log("%c🗣️ JOSÉ DICE: " + mensaje, "color: #9b59b6; font-weight: bold;");
+    
     window.speechSynthesis.cancel();
     const lectura = new SpeechSynthesisUtterance(mensaje);
     lectura.lang = 'es-ES';
     
-    lectura.onstart = () => {
-        iaHablando = true;
+    lectura.onstart = () => { 
+        iaHablando = true; 
         try { recognition.stop(); } catch(e) {} 
     };
-
+    
     lectura.onend = () => {
         iaHablando = false;
+        // Reinicio controlado del micrófono
         if (sistemaIniciado) {
-            setTimeout(() => { try { recognition.start(); } catch(e) {} }, 300);
+            setTimeout(() => { 
+                if (!iaHablando) try { recognition.start(); } catch(e) {} 
+            }, 400);
         }
     };
     window.speechSynthesis.speak(lectura);
 }
 
-// 3. RECONOCIMIENTO DE VOZ (STT)
+// 4. RECONOCIMIENTO DE VOZ (STT)
 const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 recognition.lang = 'es-ES';
 recognition.continuous = true;
@@ -42,110 +68,116 @@ recognition.onresult = async (event) => {
     if (iaHablando) return;
     
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
-    console.log("%c👂 ESCUCHADO: " + text, "color: #7f8c8d;");
+    console.log("%c👂 ESCUCHADO: " + text, "color: #7f8c8d; font-style: italic;");
 
-    // VALIDACIÓN: ¿Me están hablando a mí (José)?
-    const llamadoAJose = text.includes("josé") || text.includes("jose");
-    if (!llamadoAJose) return; // Si no dicen "José", ignoramos todo.
+    // FILTRO OBLIGATORIO: Solo responde si dices "José"
+    if (!text.includes("josé") && !text.includes("jose")) return;
 
-    // --- NAVEGACIÓN ESTÁNDAR (INSTANTÁNEA) ---
-    // Siguiente
+    // --- A. NAVEGACIÓN INSTANTÁNEA (Sin lag de IA) ---
     if (text.includes("siguiente") || text.includes("avanza")) {
-        console.log("%c🚀 NAVEGACIÓN: Siguiente", "color: #2ecc71; font-weight: bold;");
         Reveal.next();
         return;
     }
-    // Atrás
     if (text.includes("atrás") || text.includes("regresa") || text.includes("anterior")) {
-        console.log("%c🚀 NAVEGACIÓN: Atrás", "color: #2ecc71; font-weight: bold;");
         Reveal.prev();
         return;
     }
-    // Al principio (Inicio)
-    if (text.includes("inicio") || text.includes("principio") || text.includes("primera")) {
-        console.log("%c🚀 NAVEGACIÓN: Inicio", "color: #2ecc71; font-weight: bold;");
+    if (text.includes("inicio") || text.includes("principio")) {
         Reveal.slide(0);
         responderConVoz("Volviendo al inicio.");
         return;
     }
-    // Al final
-    if (text.includes("final") || text.includes("última") || text.includes("terminar")) {
-        console.log("%c🚀 NAVEGACIÓN: Final", "color: #2ecc71; font-weight: bold;");
-        const totalSlides = document.querySelectorAll('.reveal .slides section').length;
-        Reveal.slide(totalSlides - 1);
-        responderConVoz("Yendo a la diapositiva final.");
+    if (text.includes("final") || text.includes("última")) {
+        const total = document.querySelectorAll('.reveal .slides section').length;
+        Reveal.slide(total - 1);
+        responderConVoz("Yendo al final.");
         return;
     }
 
-    // --- CONSULTAS COMPLEJAS (Pasan a la IA) ---
-    // Si llegamos aquí, es porque dijo "José" pero no era un comando de navegación simple.
+    // --- B. RESALTADO VISUAL ---
+    if (text.includes("resalta") || text.includes("marca")) {
+        const palabras = text.split(" ");
+        const objetivo = palabras[palabras.length - 1]; // Toma la última palabra dicha
+        resaltarTexto(objetivo);
+        return;
+    }
+
+    // --- C. CONSULTAS COMPLEJAS (Groq API) ---
     const comandoLimpio = text.replace(/josé|jose/g, "").trim();
-    const slideActual = document.querySelector('.reveal .present').innerText || "";
+    const slideActualTexto = document.querySelector('.reveal .present').innerText || "";
     
-    console.log("%c🧠 PENSANDO...", "color: #f1c40f;");
-    const respuestaIA = await consultarIA(comandoLimpio, slideActual);
-    procesarAccion(respuestaIA, text); 
+    console.log("%c🧠 PROCESANDO CONSULTA...", "color: #f1c40f;");
+    const respuestaIA = await consultarIA(comandoLimpio, slideActualTexto);
+    
+    // Lógica para lectura de diapositiva
+    if (text.includes("lee") || text.includes("leer")) {
+        responderConVoz("En esta diapositiva dice: " + slideActualTexto);
+    } else {
+        const vozMatch = respuestaIA.match(/VOZ:\s*(.*)/is);
+        const respuestaFinal = vozMatch ? vozMatch[1].trim() : respuestaIA;
+        responderConVoz(respuestaFinal);
+    }
 };
 
 recognition.onend = () => { 
     if (sistemaIniciado && !iaHablando) {
         try { recognition.start(); } catch (e) {} 
-    }
+    } 
 };
 
-// 4. CEREBRO DE JOSÉ
+// 5. CEREBRO DE JOSÉ (API GROQ)
 async function consultarIA(frase, contextoActual) {
     try {
         const response = await fetch(API_URL, {
             method: "POST",
-            headers: { "Authorization": `Bearer ${API_KEY_GROQ}`, "Content-Type": "application/json" },
+            headers: { 
+                "Authorization": `Bearer ${API_KEY_GROQ}`, 
+                "Content-Type": "application/json" 
+            },
             body: JSON.stringify({
-                model: "llama3-8b-8192", 
+                model: "llama3-8b-8192", // Modelo optimizado para velocidad
                 messages: [
                     {
                         role: "system",
-                        content: `Eres José, un asistente de IA para presentaciones. 
-                        REGLA: Responde en máximo 15 palabras.
-                        MAPA: ${mapaDiapositivas.substring(0, 800)}`
+                        content: `Eres José, asistente de la UDB. Sé breve (1 frase). 
+                        MAPA DE DIAPOSITIVAS: ${mapaDiapositivas.substring(0, 500)}
+                        FORMATO: VOZ: [Tu respuesta]`
                     },
-                    { role: "user", content: `Slide: ${contextoActual}. Pregunta: ${frase}` }
+                    { role: "user", content: `Contexto actual: ${contextoActual}. Usuario dice: ${frase}` }
                 ],
-                temperature: 0.5
+                temperature: 0.4
             })
         });
+
+        if (response.status === 401) {
+            localStorage.removeItem('GROQ_KEY');
+            return "VOZ: La llave API es incorrecta.";
+        }
+
         const data = await response.json();
         return data.choices[0].message.content;
-    } catch (e) { return "VOZ: Lo siento, tengo problemas de conexión."; }
+    } catch (e) { return "VOZ: Error de conexión con mi cerebro virtual."; }
 }
 
-// 5. CONTROLADOR DE ACCIONES PARA IA
-function procesarAccion(rawResponse, textoEscuchado) {
-    // Si el usuario pide leer
-    if (textoEscuchado.includes("lee") || textoEscuchado.includes("leer")) {
-        const textoReal = document.querySelector('.reveal .present').innerText;
-        responderConVoz("Con gusto. Dice así: " + textoReal);
-        return;
-    }
-    
-    // Si es una respuesta normal de la IA (Voz)
-    const vozMatch = rawResponse.match(/VOZ:\s*(.*)/is);
-    const voz = vozMatch ? vozMatch[1].trim() : rawResponse;
-    if (voz) responderConVoz(voz);
-}
-
-// 6. INICIO AL PRIMER CLIC
-document.addEventListener('click', () => {
+// 6. INICIALIZACIÓN POR INTERACCIÓN
+const iniciarJose = () => {
     if (!sistemaIniciado) {
         const slides = document.querySelectorAll('.reveal .slides section');
         mapaDiapositivas = Array.from(slides).map((s, i) => {
-            let t = s.querySelector('h1, h2')?.innerText || "Diapositiva " + i;
-            return `P${i}:${t}`;
+            let t = s.querySelector('h1, h2')?.innerText || "Slide " + i;
+            return `P${i}: ${t}`;
         }).join('| ');
 
         sistemaIniciado = true;
-        responderConVoz("José listo. Di mi nombre seguido de un comando.");
+        responderConVoz("José activado. Estoy listo para la presentación.");
+        console.log("✅ JOSÉ INICIADO");
     }
-}, { once: true });
+};
+
+// Se activa al hacer clic o presionar una tecla (requisito del navegador)
+document.addEventListener('click', iniciarJose, { once: true });
+document.addEventListener('keydown', iniciarJose, { once: true });
+
 
 
 
