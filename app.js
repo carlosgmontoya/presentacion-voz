@@ -1,12 +1,9 @@
-// 1. CONFIGURACIÓN Y ESTADO (Mejorado para pedir API KEY)
+// 1. CONFIGURACIÓN Y ESTADO
 let API_KEY_GROQ = localStorage.getItem('GROQ_KEY');
 
-// Si no hay llave, pedirla al usuario inmediatamente
 if (!API_KEY_GROQ || API_KEY_GROQ === "null" || API_KEY_GROQ === "") {
-    API_KEY_GROQ = prompt("Por favor, introduce tu API KEY de Groq para activar a José:");
-    if (API_KEY_GROQ) {
-        localStorage.setItem('GROQ_KEY', API_KEY_GROQ);
-    }
+    API_KEY_GROQ = prompt("Por favor, introduce tu API KEY de Groq:");
+    if (API_KEY_GROQ) localStorage.setItem('GROQ_KEY', API_KEY_GROQ);
 }
 
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -14,140 +11,142 @@ let iaHablando = false;
 let sistemaIniciado = false;
 let mapaDiapositivas = ""; 
 
-// 2. BOTONES DE RESPALDO
-//const contenedorBotones = document.createElement('div');
-//contenedorBotones.style = "position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; gap: 10px;";
-//contenedorBotones.innerHTML = `
-//    <button id="btn-prev" style="padding: 12px 20px; cursor: pointer; border-radius: 8px; border: none; background: rgba(0,0,0,0.7); color: white; font-weight: bold; backdrop-filter: blur(5px);">⬅️ ATRÁS</button>
-//    <button id="btn-next" style="padding: 12px 20px; cursor: pointer; border-radius: 8px; border: none; background: rgba(0,0,0,0.7); color: white; font-weight: bold; backdrop-filter: blur(5px);">SIGUIENTE ➡️</button>
-//`;
-//document.body.appendChild(contenedorBotones);
-//document.getElementById('btn-prev').onclick = () => Reveal.prev();
-//document.getElementById('btn-next').onclick = () => Reveal.next();
-
-// 3. SALIDA DE VOZ (TTS)
+// 2. SALIDA DE VOZ (TTS)
 function responderConVoz(mensaje) {
     if (!mensaje) return;
-    console.log("%c🗣️ JOSÉ DICE: " + mensaje, "color: #9b59b6; font-weight: bold;");
     window.speechSynthesis.cancel();
     const lectura = new SpeechSynthesisUtterance(mensaje);
     lectura.lang = 'es-ES';
-    lectura.onstart = () => { iaHablando = true; recognition.stop(); };
+    
+    lectura.onstart = () => {
+        iaHablando = true;
+        try { recognition.stop(); } catch(e) {} 
+    };
+
     lectura.onend = () => {
         iaHablando = false;
-        setTimeout(() => { if (sistemaIniciado) try { recognition.start(); } catch (e) {} }, 700);
+        if (sistemaIniciado) {
+            setTimeout(() => { try { recognition.start(); } catch(e) {} }, 300);
+        }
     };
     window.speechSynthesis.speak(lectura);
 }
 
-// 4. RECONOCIMIENTO DE VOZ (STT)
+// 3. RECONOCIMIENTO DE VOZ (STT)
 const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 recognition.lang = 'es-ES';
 recognition.continuous = true;
+recognition.interimResults = false;
 
 recognition.onresult = async (event) => {
     if (iaHablando) return;
-    const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
-    console.log("%c👂 ESCUCHADO: " + text, "color: #7f8c8d; font-style: italic;");
+    
+    const text = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
+    console.log("%c👂 ESCUCHADO: " + text, "color: #7f8c8d;");
 
-    if (text.includes("josé") || text.includes("jose")) {
-        console.log("%c🔔 LLAMADA DETECTADA: " + text, "color: #f1c40f; font-weight: bold;");
-        const comandoLimpio = text.replace(/josé|jose/g, "").trim();
-        const slideActual = document.querySelector('.reveal .present').innerText || "";
-        const respuestaIA = await consultarIA(comandoLimpio, slideActual);
-        procesarAccion(respuestaIA, text); 
+    // VALIDACIÓN: ¿Me están hablando a mí (José)?
+    const llamadoAJose = text.includes("josé") || text.includes("jose");
+    if (!llamadoAJose) return; // Si no dicen "José", ignoramos todo.
+
+    // --- NAVEGACIÓN ESTÁNDAR (INSTANTÁNEA) ---
+    // Siguiente
+    if (text.includes("siguiente") || text.includes("avanza")) {
+        console.log("%c🚀 NAVEGACIÓN: Siguiente", "color: #2ecc71; font-weight: bold;");
+        Reveal.next();
+        return;
+    }
+    // Atrás
+    if (text.includes("atrás") || text.includes("regresa") || text.includes("anterior")) {
+        console.log("%c🚀 NAVEGACIÓN: Atrás", "color: #2ecc71; font-weight: bold;");
+        Reveal.prev();
+        return;
+    }
+    // Al principio (Inicio)
+    if (text.includes("inicio") || text.includes("principio") || text.includes("primera")) {
+        console.log("%c🚀 NAVEGACIÓN: Inicio", "color: #2ecc71; font-weight: bold;");
+        Reveal.slide(0);
+        responderConVoz("Volviendo al inicio.");
+        return;
+    }
+    // Al final
+    if (text.includes("final") || text.includes("última") || text.includes("terminar")) {
+        console.log("%c🚀 NAVEGACIÓN: Final", "color: #2ecc71; font-weight: bold;");
+        const totalSlides = document.querySelectorAll('.reveal .slides section').length;
+        Reveal.slide(totalSlides - 1);
+        responderConVoz("Yendo a la diapositiva final.");
+        return;
+    }
+
+    // --- CONSULTAS COMPLEJAS (Pasan a la IA) ---
+    // Si llegamos aquí, es porque dijo "José" pero no era un comando de navegación simple.
+    const comandoLimpio = text.replace(/josé|jose/g, "").trim();
+    const slideActual = document.querySelector('.reveal .present').innerText || "";
+    
+    console.log("%c🧠 PENSANDO...", "color: #f1c40f;");
+    const respuestaIA = await consultarIA(comandoLimpio, slideActual);
+    procesarAccion(respuestaIA, text); 
+};
+
+recognition.onend = () => { 
+    if (sistemaIniciado && !iaHablando) {
+        try { recognition.start(); } catch (e) {} 
     }
 };
 
-recognition.onend = () => { if (sistemaIniciado && !iaHablando) try { recognition.start(); } catch (e) {} };
-
-// 5. CEREBRO DE JOSÉ (RESTAURADO CON BLINDAJE 401)
+// 4. CEREBRO DE JOSÉ
 async function consultarIA(frase, contextoActual) {
     try {
         const response = await fetch(API_URL, {
             method: "POST",
             headers: { "Authorization": `Bearer ${API_KEY_GROQ}`, "Content-Type": "application/json" },
             body: JSON.stringify({
-                model: "llama-3.3-70b-versatile",
+                model: "llama3-8b-8192", 
                 messages: [
                     {
                         role: "system",
-                        content: `Eres José, asistente amable y experto. 
-                        REGLAS:
-                        1. Sé muy breve (máximo 2 frases).
-                        2. Si saludan o preguntan "¿Cómo estás?": Acción SALUDO.
-                        3. Si piden LEER: Acción LEER.
-                        4. Si preguntan "¿Qué es?", "Explícame", o "Por qué": Acción EXPLICAR.
-                        5. Navegación: IR_A_0 (inicio), SIGUIENTE, ATRAS.
-                        MAPA: ${mapaDiapositivas}
-                        FORMATO: ACCION: [COMANDO] / VOZ: [Tu respuesta]`
+                        content: `Eres José, un asistente de IA para presentaciones. 
+                        REGLA: Responde en máximo 15 palabras.
+                        MAPA: ${mapaDiapositivas.substring(0, 800)}`
                     },
-                    { role: "user", content: `Contexto: ${contextoActual}. Usuario: ${frase}` }
+                    { role: "user", content: `Slide: ${contextoActual}. Pregunta: ${frase}` }
                 ],
-                temperature: 0.3
+                temperature: 0.5
             })
         });
-
-        // Manejo del error 401 (Llave incorrecta)
-        if (response.status === 401) {
-            localStorage.removeItem('GROQ_KEY');
-            return "ACCION: NADA\nVOZ: La llave es incorrecta. Recarga la página para introducir una nueva.";
-        }
-
         const data = await response.json();
         return data.choices[0].message.content;
-    } catch (e) { return "ACCION: NADA\nVOZ: Error de conexión."; }
+    } catch (e) { return "VOZ: Lo siento, tengo problemas de conexión."; }
 }
 
-// 6. CONTROLADOR DE ACCIONES (LÓGICA HÍBRIDA RESTAURADA)
+// 5. CONTROLADOR DE ACCIONES PARA IA
 function procesarAccion(rawResponse, textoEscuchado) {
-    const accionMatch = rawResponse.match(/ACCION:\s*([\w_]+)/i);
-    const vozMatch = rawResponse.match(/VOZ:\s*(.*)/is);
-    let accion = accionMatch ? accionMatch[1].trim().toUpperCase() : "NADA";
-    let voz = vozMatch ? vozMatch[1].trim() : "";
-
-    // Blindaje de intención: detectamos si es pregunta o lectura
-    const esPreguntaAbierta = textoEscuchado.includes("explica") || textoEscuchado.includes("qué es") || textoEscuchado.includes("que es");
-    const esLectura = textoEscuchado.includes("leer") || textoEscuchado.includes("lea");
-
-    if (esPreguntaAbierta) {
-        accion = "EXPLICAR";
-    } else if (esLectura) {
-        accion = "LEER";
-    }
-
-    console.log("%c🤖 JOSÉ DECIDIÓ: " + accion, "color: #3498db; font-weight: bold;");
-
-    if (accion.startsWith("IR_A_")) {
-        const idx = parseInt(accion.split("_").pop());
-        if (!isNaN(idx)) Reveal.slide(idx);
-    } else if (accion === "SIGUIENTE") {
-        Reveal.next();
-    } else if (accion === "ATRAS") {
-        Reveal.prev();
-    } else if (accion === "LEER") {
+    // Si el usuario pide leer
+    if (textoEscuchado.includes("lee") || textoEscuchado.includes("leer")) {
         const textoReal = document.querySelector('.reveal .present').innerText;
-        console.log("%c📖 LEYENDO DIAPOSITIVA ACTUAL...", "color: #2ecc71; font-weight: bold;");
-        voz = "En esta diapositiva dice: " + textoReal; 
-    } else if (accion === "EXPLICAR" || accion === "SALUDO") {
-        if (accion === "EXPLICAR") console.log("%c🧠 GENERANDO EXPLICACIÓN...", "color: #f39c12; font-weight: bold;");
+        responderConVoz("Con gusto. Dice así: " + textoReal);
+        return;
     }
     
+    // Si es una respuesta normal de la IA (Voz)
+    const vozMatch = rawResponse.match(/VOZ:\s*(.*)/is);
+    const voz = vozMatch ? vozMatch[1].trim() : rawResponse;
     if (voz) responderConVoz(voz);
 }
 
-// 7. INICIO
-document.body.onclick = () => {
+// 6. INICIO AL PRIMER CLIC
+document.addEventListener('click', () => {
     if (!sistemaIniciado) {
         const slides = document.querySelectorAll('.reveal .slides section');
         mapaDiapositivas = Array.from(slides).map((s, i) => {
-            let t = s.querySelector('h1, h2, h3')?.innerText || s.innerText.substring(0, 40);
-            return `Índice ${i}: ${t.replace(/\n/g, " ")}`;
-        }).join('\n');
+            let t = s.querySelector('h1, h2')?.innerText || "Diapositiva " + i;
+            return `P${i}:${t}`;
+        }).join('| ');
+
         sistemaIniciado = true;
-        responderConVoz("Hola, soy José. Estoy listo para ayudarte con la presentación.");
+        responderConVoz("José listo. Di mi nombre seguido de un comando.");
     }
-};
+}, { once: true });
+
 
 
 
