@@ -59,14 +59,38 @@ recognition.onresult = async (event) => {
         window.Reveal.slide(window.Reveal.getTotalSlides() - 1);
         return;
     }
-    // Ir a número específico (Ej: "José ve a la diapositiva 3")
-    if (text.includes("diapositiva") || text.includes("lámina")) {
-        const num = text.match(/\d+/);
-        if (num) {
-            window.Reveal.slide(parseInt(num[0]) - 1);
-            return;
-        }
+// --- IR A DIAPOSITIVA (Números y Letras) ---
+if (text.includes("diapositiva") || text.includes("lámina") || text.includes("página")) {
+    // Mapa para traducir palabras comunes a números
+    const numerosLetras = {
+        "uno": 1, "primera": 1, "primero": 1,
+        "dos": 2, "segunda": 2, "segundo": 2,
+        "tres": 3, "tercera": 3, "tercero": 3,
+        "cuatro": 4, "cuarta": 4,
+        "cinco": 5, "quinta": 5
+    };
+
+    let num = null;
+
+    // 1. Intentamos buscar un número físico (ej: "5")
+    const coincidenciaDigito = text.match(/\d+/);
+    if (coincidenciaDigito) {
+        num = parseInt(coincidenciaDigito[0]);
+    } else {
+        // 2. Si no hay dígitos, buscamos si dijo la palabra (ej: "dos")
+        Object.keys(numerosLetras).forEach(palabra => {
+            if (text.includes(palabra)) {
+                num = numerosLetras[palabra];
+            }
+        });
     }
+
+    if (num !== null) {
+        console.log(`🔢 Saltando a la diapositiva: ${num}`);
+        window.Reveal.slide(num - 1); // Reveal usa índice 0 (0 es la primera)
+        return;
+    }
+}
 
     // --- CONSULTA A GROQ ---
     const slideActual = document.querySelector('.reveal .present');
@@ -128,6 +152,7 @@ document.addEventListener('click', () => {
         responderConVoz("José activado. Estoy listo para ayudarte.");
     }
 }, { once: true });
+
 
 
 
