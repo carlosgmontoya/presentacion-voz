@@ -30,6 +30,12 @@ recognition.onresult = async (event) => {
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
     console.log("👂 José escuchó:", text);
 
+    // 1. Creamos una versión "pura" de lo que escuchó el micro
+    const ordenLimpia = text.replace(/josé|jose/g, "").trim();
+
+    // 2. (Opcional pero recomendado) Para ver en consola si ahora sí lo detecta
+    console.log("🔍 Orden sin nombre:", ordenLimpia);
+    
     if (!text.includes("josé") && !text.includes("jose")) return;
 
     // --- NAVEGACIÓN MEJORADA ---
@@ -39,47 +45,47 @@ recognition.onresult = async (event) => {
     //tienePrincipio: text.includes("principio")
     //});
     
-    if (text.includes("siguiente") || text.includes("sigamos") || text.includes("adelante")) {
+    if (ordenLimpia.includes("siguiente") || ordenLimpia.includes("sigamos") || ordenLimpia.includes("adelante")) {
         console.log("Sigamos adelante");
         window.Reveal.next();
         return;
     }
-    if (text.includes("atrás") || text.includes("regresa") || text.includes("anterior")) {
+    if (ordenLimpia.includes("atrás") || ordenLimpia.includes("regresa") || ordenLimpia.includes("anterior")) {
         console.log("Regresando");
         window.Reveal.prev();
         return;
     }
-    if (text.includes("inicio") || text.includes("primera") || text.includes("principio")) {
+    if (ordenLimpia.includes("inicio") || ordenLimpia.includes("primera") || ordenLimpia.includes("principio")) {
         console.log("Volviendo al inicio...");
         window.Reveal.slide(0);
         return;
     }
-    if (text.includes("última") || text.includes("final")) {
+    if (ordenLimpia.includes("última") || ordenLimpia.includes("final")) {
         console.log("Vamos al final...");
         window.Reveal.slide(window.Reveal.getTotalSlides() - 1);
         return;
     }
-// --- IR A DIAPOSITIVA (Números y Letras) ---
-if (text.includes("diapositiva") || text.includes("lámina") || text.includes("página")) {
-    // Mapa para traducir palabras comunes a números
-    const numerosLetras = {
-        "uno": 1, "primera": 1, "primero": 1,
-        "dos": 2, "segunda": 2, "segundo": 2,
-        "tres": 3, "tercera": 3, "tercero": 3,
-        "cuatro": 4, "cuarta": 4,
-        "cinco": 5, "quinta": 5
-    };
+    // --- IR A DIAPOSITIVA (Números y Letras) ---
+    if (ordenLimpia.includes("diapositiva") || ordenLimpia.includes("lámina") || ordenLimpia.includes("página")) {
+        // Mapa para traducir palabras comunes a números
+        const numerosLetras = {
+            "uno": 1, "primera": 1, "primero": 1,
+            "dos": 2, "segunda": 2, "segundo": 2,
+            "tres": 3, "tercera": 3, "tercero": 3,
+            "cuatro": 4, "cuarta": 4,
+            "cinco": 5, "quinta": 5
+        };
 
     let num = null;
 
     // 1. Intentamos buscar un número físico (ej: "5")
-    const coincidenciaDigito = text.match(/\d+/);
+    const coincidenciaDigito = ordenLimpia.match(/\d+/);
     if (coincidenciaDigito) {
         num = parseInt(coincidenciaDigito[0]);
     } else {
         // 2. Si no hay dígitos, buscamos si dijo la palabra (ej: "dos")
         Object.keys(numerosLetras).forEach(palabra => {
-            if (text.includes(palabra)) {
+            if (ordenLimpia.includes(palabra)) {
                 num = numerosLetras[palabra];
             }
         });
@@ -152,6 +158,7 @@ document.addEventListener('click', () => {
         responderConVoz("José activado. Estoy listo para ayudarte.");
     }
 }, { once: true });
+
 
 
 
