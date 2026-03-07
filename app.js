@@ -12,17 +12,13 @@ recognition.lang = 'es-ES';
 recognition.continuous = true;
 recognition.interimResults = false;
 
-// FUNCIÓN CLAVE: Reinicio seguro con tiempo de espera largo
 function reiniciarMicrofono() {
     if (sistemaIniciado && !iaHablando) {
-        // En Edge, un delay de 2.5s evita el error 'network'
         setTimeout(() => {
             try {
                 recognition.start();
                 console.log("%c 🎤 Escuchando...", "color: #2ecc71;");
-            } catch (e) {
-                // Si ya está corriendo, no hacemos nada
-            }
+            } catch (e) { /* Ya está activo */ }
         }, 2500);
     }
 }
@@ -32,24 +28,48 @@ recognition.onresult = async (event) => {
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
     console.log("👂 Escuchado:", text);
 
+    // Si no mencionas a "José", ignoramos
     if (!text.includes("josé") && !text.includes("jose")) return;
 
-    // Lógica de IA...
-    const comando = text.replace(/josé|jose/g, "").trim();
-    const respuesta = await consultarIA(comando, "Contexto de prueba");
-    responderConVoz(respuesta);
+    // --- NUEVO: LÓGICA DE NAVEGACIÓN REVEAL.JS ---
+    // Agregamos variantes para que sea más fácil que te entienda
+    if (text.includes("siguiente") || text.includes("avanza") || text.includes("pasa")) {
+        console.log("➡️ Avanzando diapositiva...");
+        Reveal.next();
+        return;
+    }
+    if (text.includes("atrás") || text.includes("regresa") || text.includes("anterior")) {
+        console.log("⬅️ Retrocediendo diapositiva...");
+        Reveal.prev();
+        return;
+    }
+    if (text.includes("inicio") || text.includes("primera")) {
+        Reveal.slide(0);
+        return;
+    }
+
+    // --- LÓGICA DE LECTURA ---
+    const slideActual = document.querySelector('.reveal .present');
+    const contenidoSlide = slideActual ? slideActual.innerText : "Universidad Don Bosco";
+
+    if (text.includes("lee") || text.includes("leer") || text.includes("qué dice")) {
+        responderConVoz("En esta lámina dice: " + contenidoSlide);
+        return;
+    }
+
+    // --- CONSULTA IA (Si no fue un comando de navegación) ---
+    const comandoLimpio = text.replace(/josé|jose/g, "").trim();
+    console.log("%c 🧠 Consultando a Groq...", "color: #3498db;");
+    const respuestaIA = await consultarIA(comandoLimpio, contenidoSlide);
+    responderConVoz(respuestaIA);
 };
 
 recognition.onerror = (e) => {
-    if (e.error === 'network') {
-        console.warn("⚠️ Edge perdió conexión con el servidor de voz. Reintentando...");
-    }
+    if (e.error !== 'no-speech') console.warn("⚠️ Error micro:", e.error);
     reiniciarMicrofono();
 };
 
-recognition.onend = () => {
-    if (!iaHablando) reiniciarMicrofono();
-};
+recognition.onend = () => { if (!iaHablando) reiniciarMicrofono(); };
 
 // 3. SALIDA DE VOZ (TTS)
 function responderConVoz(mensaje) {
@@ -70,7 +90,7 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.speak(lectura);
 }
 
-// 4. CONSULTA IA
+// 4. CEREBRO IA
 async function consultarIA(frase, contexto) {
     try {
         const response = await fetch(API_URL, {
@@ -82,24 +102,27 @@ async function consultarIA(frase, contexto) {
             body: JSON.stringify({
                 model: "llama-3.3-70b-versatile",
                 messages: [
-                    {role: "system", content: "Eres José. Responde corto."},
-                    {role: "user", content: frase}
-                ]
+                    {role: "system", content: "Eres José, asistente de la UDB. Responde en una sola frase muy corta basándote en el contexto proporcionado."},
+                    {role: "user", content: `Contexto: ${contexto}. Pregunta: ${frase}`}
+                ],
+                temperature: 0.5
             })
         });
         const data = await response.json();
         return data.choices[0].message.content;
-    } catch (e) { return "Error de conexión con la IA."; }
+    } catch (e) { return "Lo siento, no pude conectar con mi cerebro artificial."; }
 }
 
 // 5. INICIALIZACIÓN
 document.addEventListener('click', () => {
     if (!sistemaIniciado) {
         sistemaIniciado = true;
-        reiniciarMicrofono(); // Arrancamos el micro aquí
-        responderConVoz("Sistema iniciado en Edge.");
+        console.log("%c ✅ SISTEMA ACTIVADO", "background: #2ecc71; color: white; padding: 5px;");
+        reiniciarMicrofono();
+        responderConVoz("José activado. Di: José siguiente, para avanzar.");
     }
 }, { once: true });
+
 
 
 
