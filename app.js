@@ -101,10 +101,10 @@ recognition.onresult = async (event) => {
     // --- CONSULTA A GROQ ---
     const slideActual = document.querySelector('.reveal .present');
     const contenidoSlide = slideActual ? slideActual.innerText : "UDB Presentation";
-    const comandoLimpio = text.replace(/josé|jose/g, "").trim();
+    //const comandoLimpio = text.replace(/josé|jose/g, "").trim();
 
     avatar.className = 'jose-hablando';
-    const respuesta = await consultarIA(comandoLimpio, contenidoSlide);
+    const respuesta = await consultarIA(ordenLimpia, contenidoSlide);
     responderConVoz(respuesta);
 };
 
@@ -158,6 +158,7 @@ document.addEventListener('click', () => {
         responderConVoz("José activado. Estoy listo para ayudarte.");
     }
 }, { once: true });
+
 
 
 
