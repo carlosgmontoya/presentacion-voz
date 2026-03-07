@@ -26,7 +26,12 @@ function responderConVoz(mensaje) {
 }
 
 // 3. RECONOCIMIENTO DE VOZ (STT)
-const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!SpeechRecognition) {
+    alert("Tu navegador no soporta reconocimiento de voz. Prueba con Google Chrome.");
+}
+
+const recognition = new SpeechRecognition();
 recognition.lang = 'es-ES';
 recognition.continuous = true;
 recognition.interimResults = false;
@@ -36,9 +41,11 @@ function reiniciarMicrofono() {
         setTimeout(() => {
             try { 
                 recognition.start(); 
-                console.log("%c 🎤 Micrófono activo", "color: #34495e;");
-            } catch(e) {}
-        }, 500);
+                console.log("%c 🎤 Micrófono activo y escuchando...", "color: #34495e; font-style: italic;");
+            } catch(e) {
+                // El error suele ocurrir si ya está encendido, lo ignoramos de forma segura
+            }
+        }, 400);
     }
 }
 
@@ -48,9 +55,10 @@ recognition.onresult = async (event) => {
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
     console.log("%c 👂 ESCUCHADO: " + text, "color: #f1c40f; font-weight: bold;");
 
+    // Si no mencionas a José, ignoramos el comando
     if (!text.includes("josé") && !text.includes("jose")) return;
 
-    // --- NAVEGACIÓN LOCAL ---
+    // --- NAVEGACIÓN LOCAL (Requiere Reveal.js cargado en el HTML) ---
     if (text.includes("siguiente") || text.includes("avanza")) { Reveal.next(); return; }
     if (text.includes("atrás") || text.includes("regresa")) { Reveal.prev(); return; }
     if (text.includes("inicio")) { Reveal.slide(0); return; }
@@ -71,15 +79,18 @@ recognition.onresult = async (event) => {
     responderConVoz(respuestaIA.replace("VOZ: ", ""));
 };
 
-// Manejo de errores (incluyendo el de red)
 recognition.onerror = (e) => {
-    console.error("%c ❌ ERROR: " + e.error, "color: #e74c3c;");
+    if (e.error !== 'no-speech') {
+        console.error("%c ❌ ERROR MIC: " + e.error, "color: #e74c3c;");
+    }
     reiniciarMicrofono();
 };
 
-recognition.onend = () => { if (!iaHablando) reiniciarMicrofono(); };
+recognition.onend = () => { 
+    if (!iaHablando) reiniciarMicrofono(); 
+};
 
-// 4. CEREBRO IA (Con el modelo corregido)
+// 4. CEREBRO IA
 async function consultarIA(frase, contexto) {
     try {
         const response = await fetch(API_URL, {
@@ -89,11 +100,10 @@ async function consultarIA(frase, contexto) {
                 "Content-Type": "application/json" 
             },
             body: JSON.stringify({
-                // CAMBIAMOS AL MODELO NUEVO DE GROQ
                 model: "llama-3.3-70b-versatile", 
                 messages: [
-                    {role: "system", content: "Eres José, asistente UDB. Responde en 1 frase corta. FORMATO: VOZ: [Respuesta]"},
-                    {role: "user", content: `Slide: ${contexto.substring(0, 400)}. Pregunta: ${frase}`}
+                    {role: "system", content: "Eres José, asistente UDB. Responde de forma muy breve (máximo 15 palabras). FORMATO: VOZ: [Respuesta]"},
+                    {role: "user", content: `Contexto diapositiva: ${contexto.substring(0, 500)}. Pregunta: ${frase}`}
                 ],
                 temperature: 0.6
             })
@@ -102,8 +112,8 @@ async function consultarIA(frase, contexto) {
         const data = await response.json();
         
         if (data.error) {
-            console.error("Detalle del error:", data.error.message);
-            return "VOZ: Lo siento, mi cerebro tiene un problema técnico.";
+            console.error("Error Groq:", data.error.message);
+            return "VOZ: Hay un error con la clave de acceso.";
         }
         
         return data.choices[0].message.content;
@@ -112,15 +122,20 @@ async function consultarIA(frase, contexto) {
     }
 }
 
-// 5. INICIALIZACIÓN
-const iniciar = () => {
+// 5. INICIALIZACIÓN (Se activa con el primer click en cualquier parte)
+const iniciarSistema = () => {
     if (!sistemaIniciado) {
         sistemaIniciado = true;
-        console.log("%c ✅ SISTEMA LISTO", "color: #ffffff; background: #2ecc71; padding: 5px;");
-        responderConVoz("José activado y actualizado.");
+        console.log("%c ✅ SISTEMA JOSÉ INICIALIZADO", "color: #ffffff; background: #2ecc71; padding: 5px; border-radius: 3px;");
+        
+        // El ajuste clave: Arrancar el micro tras el click inicial
+        reiniciarMicrofono(); 
+        responderConVoz("José activado. ¿En qué puedo ayudarte?");
     }
 };
-document.addEventListener('click', iniciar, { once: true });
+
+document.addEventListener('click', iniciarSistema, { once: true });
+
 
 
 
