@@ -13,12 +13,18 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.cancel();
     const lectura = new SpeechSynthesisUtterance(mensaje);
     lectura.lang = 'es-ES';
-    lectura.onstart = () => { iaHablando = true; try { recognition.stop(); } catch(e) {} };
-    lectura.onend = () => { iaHablando = false; reiniciarMicrofono(); };
+    lectura.onstart = () => { 
+        iaHablando = true; 
+        try { recognition.stop(); } catch(e) {} 
+    };
+    lectura.onend = () => { 
+        iaHablando = false; 
+        reiniciarMicrofono(); 
+    };
     window.speechSynthesis.speak(lectura);
 }
 
-// 3. RECONOCIMIENTO DE VOZ (STT) - Con Blindaje de Red
+// 3. RECONOCIMIENTO DE VOZ (STT)
 const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 recognition.lang = 'es-ES';
 recognition.continuous = true;
@@ -40,25 +46,41 @@ recognition.onresult = async (event) => {
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
     console.log("%c👂 ESCUCHADO: " + text, "color: #f1c40f; font-weight: bold;");
 
+    // Filtro de activación
     if (!text.includes("josé") && !text.includes("jose")) return;
 
-    // NAVEGACIÓN
+    // --- NAVEGACIÓN RÁPIDA ---
     if (text.includes("siguiente") || text.includes("avanza")) { Reveal.next(); return; }
-    if (text.includes("atrás") || text.includes("regresa")) { Reveal.prev(); return; }
+    if (text.includes("atrás") || text.includes("regresa") || text.includes("anterior")) { Reveal.prev(); return; }
     
-    // IA
+    // Comandos de Inicio y Final
+    if (text.includes("inicio") || text.includes("principio")) { Reveal.slide(0); return; }
+    if (text.includes("final") || text.includes("última")) { 
+        Reveal.slide(Reveal.getTotalSlides() - 1); 
+        return; 
+    }
+
+    // --- ACCIÓN DE LECTURA (Local) ---
+    const slideActual = document.querySelector('.reveal .present');
+    const contenidoSlide = slideActual ? slideActual.innerText : "";
+
+    if (text.includes("lee") || text.includes("leer")) {
+        responderConVoz("En esta diapositiva dice: " + contenidoSlide);
+        return;
+    }
+    
+    // --- CONSULTA IA (Groq) ---
     const comandoLimpio = text.replace(/josé|jose/g, "").trim();
-    const respuestaIA = await consultarIA(comandoLimpio, document.querySelector('.reveal .present').innerText);
+    const respuestaIA = await consultarIA(comandoLimpio, contenidoSlide);
     const vozMatch = respuestaIA.match(/VOZ:\s*(.*)/is);
     responderConVoz(vozMatch ? vozMatch[1].trim() : respuestaIA);
 };
 
-// --- EL ARREGLO PARA TU ERROR DE RED ---
+// Manejo de errores de red y otros
 recognition.onerror = (e) => {
     console.error("%c❌ ERROR DETECTADO: " + e.error, "color: #e74c3c;");
-    
     if (e.error === 'network') {
-        console.warn("Intentando reconectar con el servicio de voz en 2 segundos...");
+        console.warn("Reconectando servicio de voz...");
         try { recognition.stop(); } catch(i) {}
         setTimeout(() => reiniciarMicrofono(), 2000);
     } else {
@@ -76,7 +98,7 @@ async function consultarIA(frase, contexto) {
             headers: { "Authorization": `Bearer ${API_KEY_GROQ}`, "Content-Type": "application/json" },
             body: JSON.stringify({
                 model: "llama3-8b-8192", 
-                messages: [{role: "system", content: "Eres José. Responde breve. FORMATO: VOZ: [Respuesta]"},
+                messages: [{role: "system", content: "Eres José, asistente UDB. Responde en una frase corta. FORMATO: VOZ: [Respuesta]"},
                            {role: "user", content: `Contexto: ${contexto}. Pregunta: ${frase}`}]
             })
         });
@@ -94,6 +116,7 @@ const iniciar = () => {
     }
 };
 document.addEventListener('click', iniciar, { once: true });
+
 
 
 
