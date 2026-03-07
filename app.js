@@ -7,7 +7,6 @@ let sistemaIniciado = false;
 // 2. RECONOCIMIENTO DE VOZ (STT)
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = new SpeechRecognition();
-
 recognition.lang = 'es-ES';
 recognition.continuous = true;
 recognition.interimResults = false;
@@ -15,11 +14,8 @@ recognition.interimResults = false;
 function reiniciarMicrofono() {
     if (sistemaIniciado && !iaHablando) {
         setTimeout(() => {
-            try {
-                recognition.start();
-                console.log("%c 🎤 Escuchando...", "color: #2ecc71;");
-            } catch (e) { /* Ya está activo */ }
-        }, 2500);
+            try { recognition.start(); console.log("%c 🎤 Micro Activo", "color: #2ecc71;"); } catch(e) {}
+        }, 2000); 
     }
 }
 
@@ -28,65 +24,41 @@ recognition.onresult = async (event) => {
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
     console.log("👂 Escuchado:", text);
 
-    // Si no mencionas a "José", ignoramos
     if (!text.includes("josé") && !text.includes("jose")) return;
 
-    // --- NUEVO: LÓGICA DE NAVEGACIÓN REVEAL.JS ---
-    // Agregamos variantes para que sea más fácil que te entienda
+    // COMANDOS DE NAVEGACIÓN (Lo que faltaba)
     if (text.includes("siguiente") || text.includes("avanza") || text.includes("pasa")) {
-        console.log("➡️ Avanzando diapositiva...");
-        Reveal.next();
+        console.log("➡️ Cambiando a la siguiente...");
+        window.Reveal.next();
         return;
     }
     if (text.includes("atrás") || text.includes("regresa") || text.includes("anterior")) {
-        console.log("⬅️ Retrocediendo diapositiva...");
-        Reveal.prev();
-        return;
-    }
-    if (text.includes("inicio") || text.includes("primera")) {
-        Reveal.slide(0);
+        console.log("⬅️ Volviendo atrás...");
+        window.Reveal.prev();
         return;
     }
 
-    // --- LÓGICA DE LECTURA ---
+    // CONSULTA A LA IA
     const slideActual = document.querySelector('.reveal .present');
-    const contenidoSlide = slideActual ? slideActual.innerText : "Universidad Don Bosco";
-
-    if (text.includes("lee") || text.includes("leer") || text.includes("qué dice")) {
-        responderConVoz("En esta lámina dice: " + contenidoSlide);
-        return;
-    }
-
-    // --- CONSULTA IA (Si no fue un comando de navegación) ---
+    const contenidoSlide = slideActual ? slideActual.innerText : "UDB";
     const comandoLimpio = text.replace(/josé|jose/g, "").trim();
-    console.log("%c 🧠 Consultando a Groq...", "color: #3498db;");
-    const respuestaIA = await consultarIA(comandoLimpio, contenidoSlide);
-    responderConVoz(respuestaIA);
-};
 
-recognition.onerror = (e) => {
-    if (e.error !== 'no-speech') console.warn("⚠️ Error micro:", e.error);
-    reiniciarMicrofono();
+    console.log("🧠 Pensando...");
+    const respuesta = await consultarIA(comandoLimpio, contenidoSlide);
+    responderConVoz(respuesta);
 };
 
 recognition.onend = () => { if (!iaHablando) reiniciarMicrofono(); };
+recognition.onerror = (e) => { reiniciarMicrofono(); };
 
 // 3. SALIDA DE VOZ (TTS)
 function responderConVoz(mensaje) {
     if (!mensaje) return;
     window.speechSynthesis.cancel();
-    const lectura = new SpeechSynthesisUtterance(mensaje.replace("VOZ: ", ""));
+    const lectura = new SpeechSynthesisUtterance(mensaje);
     lectura.lang = 'es-ES';
-
-    lectura.onstart = () => {
-        iaHablando = true;
-        try { recognition.stop(); } catch(e) {}
-    };
-
-    lectura.onend = () => {
-        iaHablando = false;
-        reiniciarMicrofono();
-    };
+    lectura.onstart = () => { iaHablando = true; try { recognition.stop(); } catch(e) {} };
+    lectura.onend = () => { iaHablando = false; reiniciarMicrofono(); };
     window.speechSynthesis.speak(lectura);
 }
 
@@ -95,31 +67,26 @@ async function consultarIA(frase, contexto) {
     try {
         const response = await fetch(API_URL, {
             method: "POST",
-            headers: { 
-                "Authorization": `Bearer ${API_KEY_GROQ}`, 
-                "Content-Type": "application/json" 
-            },
+            headers: { "Authorization": `Bearer ${API_KEY_GROQ}`, "Content-Type": "application/json" },
             body: JSON.stringify({
                 model: "llama-3.3-70b-versatile",
                 messages: [
-                    {role: "system", content: "Eres José, asistente de la UDB. Responde en una sola frase muy corta basándote en el contexto proporcionado."},
-                    {role: "user", content: `Contexto: ${contexto}. Pregunta: ${frase}`}
-                ],
-                temperature: 0.5
+                    {role: "system", content: "Eres José, asistente UDB. Responde muy corto (máximo 15 palabras)."},
+                    {role: "user", content: `Slide actual: ${contexto}. Pregunta: ${frase}`}
+                ]
             })
         });
         const data = await response.json();
         return data.choices[0].message.content;
-    } catch (e) { return "Lo siento, no pude conectar con mi cerebro artificial."; }
+    } catch (e) { return "Error de conexión."; }
 }
 
-// 5. INICIALIZACIÓN
+// 5. INICIO
 document.addEventListener('click', () => {
     if (!sistemaIniciado) {
         sistemaIniciado = true;
-        console.log("%c ✅ SISTEMA ACTIVADO", "background: #2ecc71; color: white; padding: 5px;");
         reiniciarMicrofono();
-        responderConVoz("José activado. Di: José siguiente, para avanzar.");
+        responderConVoz("José activado. Di: José siguiente para navegar.");
     }
 }, { once: true });
 
