@@ -34,14 +34,22 @@ recognition.onresult = async (event) => {
 
     // --- NAVEGACIÓN MEJORADA ---
     if (text.includes("siguiente") || text.includes("avanza") || text.includes("pasa")) {
+        console.log("Sigamos adelante");
         window.Reveal.next();
         return;
     }
     if (text.includes("atrás") || text.includes("regresa") || text.includes("anterior")) {
+        console.log("Regresando");
         window.Reveal.prev();
         return;
     }
+    if (text.includes("inicio") || text.includes("primera") || text.includes("primero")) {
+        console.log("Volviendo al inicio...");
+        window.Reveal.slide(0);
+        return;
+    }
     if (text.includes("última") || text.includes("final")) {
+        console.log("Volviendo al final...");
         window.Reveal.slide(window.Reveal.getTotalSlides() - 1);
         return;
     }
@@ -114,6 +122,7 @@ document.addEventListener('click', () => {
         responderConVoz("José activado. Estoy listo para ayudarte.");
     }
 }, { once: true });
+
 
 
 
