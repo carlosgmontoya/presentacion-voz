@@ -26,17 +26,35 @@ recognition.onresult = async (event) => {
 
     if (!text.includes("josé") && !text.includes("jose")) return;
 
-    // COMANDOS DE NAVEGACIÓN (Lo que faltaba)
-    if (text.includes("siguiente") || text.includes("avanza") || text.includes("pasa")) {
-        console.log("➡️ Cambiando a la siguiente...");
-        window.Reveal.next();
+// --- NAVEGACIÓN MEJORADA (Reemplaza tu bloque de navegación anterior) ---
+if (text.includes("siguiente") || text.includes("avanza") || text.includes("pasa")) {
+    window.Reveal.next();
+    return;
+}
+if (text.includes("atrás") || text.includes("regresa") || text.includes("anterior")) {
+    window.Reveal.prev();
+    return;
+}
+
+// NUEVO: Ir a la última diapositiva
+if (text.includes("última") || text.includes("final")) {
+    console.log("➡️ Yendo al final...");
+    // Reveal.getTotalSlides() nos da el número total de láminas
+    window.Reveal.slide( window.Reveal.getTotalSlides() - 1 );
+    return;
+}
+
+// NUEVO: Ir a una diapositiva específica (Ej: "José, ve a la diapositiva 3")
+if (text.includes("diapositiva") || text.includes("lámina")) {
+    // Buscamos si hay un número en lo que dijiste
+    const numero = text.match(/\d+/); 
+    if (numero) {
+        const indice = parseInt(numero[0]) - 1; // Restamos 1 porque en programación se empieza desde 0
+        console.log("➡️ Saltando a la diapositiva:", numero[0]);
+        window.Reveal.slide(indice);
         return;
     }
-    if (text.includes("atrás") || text.includes("regresa") || text.includes("anterior")) {
-        console.log("⬅️ Volviendo atrás...");
-        window.Reveal.prev();
-        return;
-    }
+}
 
     // CONSULTA A LA IA
     const slideActual = document.querySelector('.reveal .present');
@@ -89,6 +107,7 @@ document.addEventListener('click', () => {
         responderConVoz("José activado. Di: José siguiente para navegar.");
     }
 }, { once: true });
+
 
 
 
