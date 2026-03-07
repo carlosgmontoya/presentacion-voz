@@ -109,7 +109,18 @@ recognition.onresult = async (event) => {
 };
 
 recognition.onend = () => { if (!iaHablando) reiniciarMicrofono(); };
-recognition.onerror = (e) => { reiniciarMicrofono(); };
+//recognition.onerror = (e) => { reiniciarMicrofono(); };
+recognition.onerror = (e) => { 
+    // Esto nos dirá el "nombre y apellido" del error en la consola
+    console.error("❌ ERROR DETECTADO:", e.error); 
+    
+    // Si el error es 'not-allowed', es que Edge bloqueó el permiso permanentemente
+    if (e.error === 'not-allowed') {
+        alert("Edge bloqueó el micrófono. Haz clic en el candado de la barra de direcciones y dale a 'Permitir'.");
+    }
+
+    reiniciarMicrofono(); 
+};
 
 // 3. SALIDA DE VOZ (TTS)
 function responderConVoz(mensaje) {
@@ -158,6 +169,7 @@ document.addEventListener('click', () => {
         responderConVoz("José activado. Estoy listo para ayudarte.");
     }
 }, { once: true });
+
 
 
 
