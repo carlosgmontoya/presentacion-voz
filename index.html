@@ -46,36 +46,36 @@
             font-weight: bold;
         }
 
+        /* --- ESTILOS DE LA CARITA DE JOSÉ --- */
+        #jose-avatar {
+            position: fixed;
+            top: 25px;
+            left: 25px;
+            width: 50px;
+            height: 50px;
+            background: var(--udb-azul);
+            border: 3px solid var(--udb-amarillo);
+            border-radius: 12px;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        .ojo { width: 6px; height: 6px; background: white; border-radius: 50%; margin: 4px; transition: 0.2s; }
+        .boca { position: absolute; bottom: 12px; width: 15px; height: 3px; background: white; border-radius: 10px; transition: 0.2s; }
+        
+        /* Estados de José */
+        .jose-escuchando { border-color: #2ecc71 !important; transform: scale(1.05); }
+        .jose-hablando { box-shadow: 0 0 15px var(--udb-amarillo); transform: scale(1.1); }
+        .jose-hablando .boca { height: 8px; border-radius: 50%; }
+
         .reveal h1 { color: var(--udb-azul); text-transform: none; }
         .reveal h2 { color: var(--udb-azul); font-size: 1.3em; margin-bottom: 20px; }
         
-        .container-flex {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            align-items: stretch;
-        }
-
-        .column {
-            flex: 1;
-            background: #f4f4f4;
-            padding: 20px;
-            border-radius: 10px;
-            border-left: 5px solid var(--udb-amarillo);
-        }
-
-        .link-button {
-            display: inline-block;
-            padding: 10px 20px;
-            background-color: var(--udb-azul);
-            color: white !important;
-            text-decoration: none;
-            border-radius: 5px;
-            font-size: 0.6em;
-            margin-top: 15px;
-            font-weight: bold;
-        }
-
+        .container-flex { display: flex; gap: 20px; justify-content: center; align-items: stretch; }
+        .column { flex: 1; background: #f4f4f4; padding: 20px; border-radius: 10px; border-left: 5px solid var(--udb-amarillo); }
+        .link-button { display: inline-block; padding: 10px 20px; background-color: var(--udb-azul); color: white !important; text-decoration: none; border-radius: 5px; font-size: 0.6em; margin-top: 15px; font-weight: bold; }
         .reveal ul { font-size: 0.65em; line-height: 1.4; }
         .reveal p { font-size: 0.7em; }
         .highlight { color: var(--udb-azul); font-weight: bold; }
@@ -83,12 +83,18 @@
 </head>
 <body>
     <div class="header-line"></div>
+    
+    <div id="jose-avatar">
+        <div class="ojo"></div>
+        <div class="ojo"></div>
+        <div class="boca"></div>
+    </div>
+
     <img src="Logo-8.5.jpg" class="udb-logo" alt="Logo UDB">
     <div class="footer-bar">UNIVERSIDAD DON BOSCO</div>
 
     <div class="reveal">
         <div class="slides">
-            
             <section>
                 <h1>La IA y el aprendizaje autónomo</h1>
                 <p style="font-size: 0.9em; color: gray;">Grupo 1</p>
@@ -204,14 +210,12 @@
                 <p>La IA promueve procesos metacognitivos sin sustituir la mediación pedagógica.</p>
                 <h2 style="color: var(--udb-amarillo)">¡Fue un agrado compartir este espacio con ustedes!</h2>
             </section>
-
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.js"></script>
     <script src="app.js"></script>
     <script>
-        // Inicialización que permite a app.js tomar el control
         window.Reveal = Reveal; 
         Reveal.initialize({ 
             hash: true,
@@ -219,7 +223,7 @@
             progress: true,
             center: true,
             transition: 'slide',
-            slideNumber: 'c/t' // Muestra "Diapositiva actual / Total"
+            slideNumber: 'c/t' // ACTIVA LOS NÚMEROS EN PANTALLA
         });
     </script>
 </body>
