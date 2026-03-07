@@ -4,6 +4,8 @@ const API_URL = "https://api.groq.com/openai/v1/chat/completions";
 let iaHablando = false;
 let sistemaIniciado = false;
 
+const avatar = document.getElementById('jose-avatar');
+
 // 2. RECONOCIMIENTO DE VOZ (STT)
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = new SpeechRecognition();
@@ -14,7 +16,11 @@ recognition.interimResults = false;
 function reiniciarMicrofono() {
     if (sistemaIniciado && !iaHablando) {
         setTimeout(() => {
-            try { recognition.start(); console.log("%c 🎤 Micro Activo", "color: #2ecc71;"); } catch(e) {}
+            try { 
+                recognition.start(); 
+                avatar.className = 'jose-escuchando';
+                console.log("🎤 Micro Escuchando..."); 
+            } catch(e) {}
         }, 2000); 
     }
 }
@@ -22,46 +28,38 @@ function reiniciarMicrofono() {
 recognition.onresult = async (event) => {
     if (iaHablando) return;
     const text = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
-    console.log("👂 Escuchado:", text);
+    console.log("👂 José escuchó:", text);
 
     if (!text.includes("josé") && !text.includes("jose")) return;
 
-// --- NAVEGACIÓN MEJORADA (Reemplaza tu bloque de navegación anterior) ---
-if (text.includes("siguiente") || text.includes("avanza") || text.includes("pasa") || text.includes("adelante")) {
-    window.Reveal.next();
-    return;
-}
-if (text.includes("atrás") || text.includes("regresa") || text.includes("anterior")) {
-    window.Reveal.prev();
-    return;
-}
-
-// NUEVO: Ir a la última diapositiva
-if (text.includes("última") || text.includes("final")) {
-    console.log("➡️ Yendo al final...");
-    // Reveal.getTotalSlides() nos da el número total de láminas
-    window.Reveal.slide( window.Reveal.getTotalSlides() - 1 );
-    return;
-}
-
-// NUEVO: Ir a una diapositiva específica (Ej: "José, ve a la diapositiva 3")
-if (text.includes("diapositiva") || text.includes("lámina")) {
-    // Buscamos si hay un número en lo que dijiste
-    const numero = text.match(/\d+/); 
-    if (numero) {
-        const indice = parseInt(numero[0]) - 1; // Restamos 1 porque en programación se empieza desde 0
-        console.log("➡️ Saltando a la diapositiva:", numero[0]);
-        window.Reveal.slide(indice);
+    // --- NAVEGACIÓN MEJORADA ---
+    if (text.includes("siguiente") || text.includes("avanza") || text.includes("pasa")) {
+        window.Reveal.next();
         return;
     }
-}
+    if (text.includes("atrás") || text.includes("regresa") || text.includes("anterior")) {
+        window.Reveal.prev();
+        return;
+    }
+    if (text.includes("última") || text.includes("final")) {
+        window.Reveal.slide(window.Reveal.getTotalSlides() - 1);
+        return;
+    }
+    // Ir a número específico (Ej: "José ve a la diapositiva 3")
+    if (text.includes("diapositiva") || text.includes("lámina")) {
+        const num = text.match(/\d+/);
+        if (num) {
+            window.Reveal.slide(parseInt(num[0]) - 1);
+            return;
+        }
+    }
 
-    // CONSULTA A LA IA
+    // --- CONSULTA A GROQ ---
     const slideActual = document.querySelector('.reveal .present');
-    const contenidoSlide = slideActual ? slideActual.innerText : "UDB";
+    const contenidoSlide = slideActual ? slideActual.innerText : "UDB Presentation";
     const comandoLimpio = text.replace(/josé|jose/g, "").trim();
 
-    console.log("🧠 Pensando...");
+    avatar.className = 'jose-hablando';
     const respuesta = await consultarIA(comandoLimpio, contenidoSlide);
     responderConVoz(respuesta);
 };
@@ -75,8 +73,17 @@ function responderConVoz(mensaje) {
     window.speechSynthesis.cancel();
     const lectura = new SpeechSynthesisUtterance(mensaje);
     lectura.lang = 'es-ES';
-    lectura.onstart = () => { iaHablando = true; try { recognition.stop(); } catch(e) {} };
-    lectura.onend = () => { iaHablando = false; reiniciarMicrofono(); };
+
+    lectura.onstart = () => { 
+        iaHablando = true; 
+        avatar.className = 'jose-hablando';
+        try { recognition.stop(); } catch(e) {} 
+    };
+    lectura.onend = () => { 
+        iaHablando = false; 
+        avatar.className = 'jose-idle';
+        reiniciarMicrofono(); 
+    };
     window.speechSynthesis.speak(lectura);
 }
 
@@ -89,24 +96,25 @@ async function consultarIA(frase, contexto) {
             body: JSON.stringify({
                 model: "llama-3.3-70b-versatile",
                 messages: [
-                    {role: "system", content: "Eres José, asistente UDB. Responde muy corto (máximo 15 palabras)."},
-                    {role: "user", content: `Slide actual: ${contexto}. Pregunta: ${frase}`}
+                    {role: "system", content: "Eres José, asistente de la UDB. Responde muy breve basándote en la slide."},
+                    {role: "user", content: `Slide: ${contexto}. Pregunta: ${frase}`}
                 ]
             })
         });
         const data = await response.json();
         return data.choices[0].message.content;
-    } catch (e) { return "Error de conexión."; }
+    } catch (e) { return "Lo siento, tuve un pequeño error de conexión."; }
 }
 
-// 5. INICIO
+// 5. INICIALIZACIÓN
 document.addEventListener('click', () => {
     if (!sistemaIniciado) {
         sistemaIniciado = true;
         reiniciarMicrofono();
-        responderConVoz("José activado. Di: José y la instrucción para navegar.");
+        responderConVoz("José activado. Estoy listo para ayudarte.");
     }
 }, { once: true });
+
 
 
 
