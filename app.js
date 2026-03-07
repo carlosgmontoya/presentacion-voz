@@ -43,7 +43,7 @@ recognition.onresult = async (event) => {
         window.Reveal.prev();
         return;
     }
-    if (text.includes("inicio") || text.includes("primera") || text.includes("inicio")) {
+    if (text.includes("inicio") || text.includes("primera") || text.includes("al principio")) {
         console.log("Volviendo al inicio...");
         window.Reveal.slide(0);
         return;
@@ -122,6 +122,7 @@ document.addEventListener('click', () => {
         responderConVoz("José activado. Estoy listo para ayudarte.");
     }
 }, { once: true });
+
 
 
 
