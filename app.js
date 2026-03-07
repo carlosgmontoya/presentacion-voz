@@ -27,7 +27,7 @@ recognition.onresult = async (event) => {
     if (!text.includes("josé") && !text.includes("jose")) return;
 
 // --- NAVEGACIÓN MEJORADA (Reemplaza tu bloque de navegación anterior) ---
-if (text.includes("siguiente") || text.includes("avanza") || text.includes("pasa")) {
+if (text.includes("siguiente") || text.includes("avanza") || text.includes("pasa") || text.includes("adelante")) {
     window.Reveal.next();
     return;
 }
@@ -107,6 +107,7 @@ document.addEventListener('click', () => {
         responderConVoz("José activado. Di: José siguiente para navegar.");
     }
 }, { once: true });
+
 
 
 
