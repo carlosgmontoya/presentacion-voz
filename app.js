@@ -104,9 +104,10 @@ document.addEventListener('click', () => {
     if (!sistemaIniciado) {
         sistemaIniciado = true;
         reiniciarMicrofono();
-        responderConVoz("José activado. Di: José siguiente para navegar.");
+        responderConVoz("José activado. Di: José y la instrucción para navegar.");
     }
 }, { once: true });
+
 
 
 
