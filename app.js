@@ -33,7 +33,7 @@ recognition.onresult = async (event) => {
     if (!text.includes("josé") && !text.includes("jose")) return;
 
     // --- NAVEGACIÓN MEJORADA ---
-    if (text.includes("siguiente") || text.includes("avanza") || text.includes("pasa")) {
+    if (text.includes("siguiente") || text.includes("sigamos") || text.includes("adelante")) {
         console.log("Sigamos adelante");
         window.Reveal.next();
         return;
@@ -122,6 +122,7 @@ document.addEventListener('click', () => {
         responderConVoz("José activado. Estoy listo para ayudarte.");
     }
 }, { once: true });
+
 
 
 
