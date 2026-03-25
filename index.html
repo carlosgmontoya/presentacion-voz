@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
-    <title>Charlas Informativas - Escuela de Electrónica UDB</title>
+    <title>Presentación Escuela de Electrónica - UDB</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/white.min.css">
     
@@ -10,6 +10,10 @@
         :root {
             --udb-azul: #0056b3;
             --udb-amarillo: #ffcc00;
+        }
+
+        body {
+            background-color: white;
         }
 
         .header-line {
@@ -46,13 +50,13 @@
             font-weight: bold;
         }
 
-        /* --- ESTILOS DE LA CARITA DE JOSÉ --- */
+        /* --- ESTILOS DE JOSÉ (ASISTENTE VOCAL) --- */
         #jose-avatar {
             position: fixed;
             top: 25px;
             left: 25px;
-            width: 50px;
-            height: 50px;
+            width: 60px;
+            height: 60px;
             background: var(--udb-azul);
             border: 3px solid var(--udb-amarillo);
             border-radius: 12px;
@@ -62,20 +66,28 @@
             align-items: center;
             transition: all 0.3s ease;
         }
-        .ojo { width: 6px; height: 6px; background: white; border-radius: 50%; margin: 4px; transition: 0.2s; }
-        .boca { position: absolute; bottom: 12px; width: 15px; height: 3px; background: white; border-radius: 10px; transition: 0.2s; }
+        .ojo { width: 8px; height: 8px; background: white; border-radius: 50%; margin: 5px; transition: 0.2s; }
+        .boca { position: absolute; bottom: 15px; width: 20px; height: 4px; background: white; border-radius: 10px; transition: 0.2s; }
         
-        .jose-escuchando { border-color: #2ecc71 !important; transform: scale(1.05); }
-        .jose-hablando { box-shadow: 0 0 15px var(--udb-amarillo); transform: scale(1.1); }
-        .jose-hablando .boca { height: 8px; border-radius: 50%; }
+        /* Estados animados para app.js */
+        .jose-escuchando { border-color: #2ecc71 !important; transform: scale(1.1); box-shadow: 0 0 15px #2ecc71; }
+        .jose-hablando { box-shadow: 0 0 20px var(--udb-amarillo); transform: scale(1.1); }
+        .jose-hablando .boca { height: 10px; border-radius: 50%; }
 
-        .reveal h1 { color: var(--udb-azul); text-transform: none; font-size: 1.8em; }
-        .reveal h2 { color: var(--udb-azul); font-size: 1.3em; margin-bottom: 20px; }
+        /* --- ESTILOS DE CONTENIDO --- */
+        .reveal h1 { color: var(--udb-azul); text-transform: none; font-size: 2em; }
+        .reveal h2 { color: var(--udb-azul); font-size: 1.5em; margin-bottom: 20px; border-left: 8px solid var(--udb-amarillo); padding-left: 15px; text-align: left; }
         
-        .container-flex { display: flex; gap: 20px; justify-content: center; align-items: stretch; }
-        .column { flex: 1; background: #f4f4f4; padding: 20px; border-radius: 10px; border-left: 5px solid var(--udb-amarillo); }
-        .reveal ul { font-size: 0.70em; line-height: 1.5; }
+        .container-flex { display: flex; gap: 20px; justify-content: center; align-items: stretch; height: 100%; }
+        .column { flex: 1; background: #f8f9fa; padding: 30px; border-radius: 15px; display: flex; flex-direction: column; justify-content: center; }
+        .column-img { flex: 1; display: flex; align-items: center; justify-content: center; }
+        .column-img img { width: 100%; border-radius: 10px; box-shadow: 5px 5px 15px rgba(0,0,0,0.1); }
+
+        .reveal ul { font-size: 0.8em; line-height: 1.6; color: #333; }
         .highlight { color: var(--udb-azul); font-weight: bold; }
+        
+        .grid-images { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+        .grid-images img { width: 100%; height: 150px; object-fit: cover; border-radius: 5px; }
     </style>
 </head>
 <body>
@@ -88,15 +100,16 @@
     </div>
 
     <img src="Logo-8.5.jpg" class="udb-logo" alt="Logo UDB">
-    <div class="footer-bar">ESCUELA DE ELECTRÓNICA - UNIVERSIDAD DON BOSCO</div>
+    <div class="footer-bar">FACULTAD DE INGENIERÍA - ESCUELA DE ELECTRÓNICA</div>
 
     <div class="reveal">
         <div class="slides">
+            
             <section>
                 <h1>Escuela de Electrónica</h1>
-                <h2 style="color: gray;">Charlas Informativas 2026</h2>
-                <div style="margin-top: 50px;">
-                    <p class="highlight">Facultad de Ingeniería</p>
+                <h3 class="highlight">Charlas Informativas 2024</h3>
+                <div style="margin-top: 30px;">
+                    <img src="Imagen1.png" style="max-height: 350px; border-radius: 20px;">
                 </div>
             </section>
 
@@ -105,10 +118,14 @@
                 <div class="container-flex">
                     <div class="column">
                         <ul>
-                            <li><strong>Ingeniería en Electrónica y Automatización:</strong> Control de procesos y sistemas inteligentes.</li>
-                            <li><strong>Ingeniería Mecatrónica:</strong> Sinergia entre mecánica, electrónica y software.</li>
-                            <li><strong>Ingeniería en Telecomunicaciones y Redes:</strong> Conectividad y gestión de datos global.</li>
+                            <li><strong>Ingeniería en Electrónica y Automatización</strong></li>
+                            <li><strong>Ingeniería Mecatrónica</strong></li>
+                            <li><strong>Ingeniería en Telecomunicaciones y Redes</strong></li>
                         </ul>
+                    </div>
+                    <div class="column-img" style="flex-direction: column; gap: 10px;">
+                        <img src="Imagen2.png">
+                        <img src="Imagen3.png">
                     </div>
                 </div>
             </section>
@@ -117,13 +134,32 @@
                 <h2>Campos de Actuación</h2>
                 <div class="container-flex">
                     <div class="column">
-                        <p>Nuestros graduados se desempeñan en:</p>
-                        <ul>
-                            <li>Mantenimiento Industrial y Biomédico.</li>
-                            <li>Diseño de Sistemas Automatizados.</li>
-                            <li>Gestión de Redes de Datos y Telefonía.</li>
-                            <li>Energías Renovables y Robótica.</li>
+                        <p>Desarrollo profesional en sectores de alta tecnología e innovación industrial.</p>
+                        <ul style="font-size: 0.7em;">
+                            <li>Automatización e Industria 4.0</li>
+                            <li>Sistemas Biomédicos</li>
+                            <li>Redes de Datos</li>
                         </ul>
+                    </div>
+                    <div class="column-img">
+                        <div class="grid-images">
+                            <img src="Imagen4.png">
+                            <img src="Imagen5.png">
+                            <img src="Imagen6.png">
+                            <img src="Imagen7.png">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>Campos de Actuación</h2>
+                <div class="container-flex">
+                    <div class="column-img">
+                        <img src="Imagen8.png" style="height: 400px; object-fit: cover;">
+                    </div>
+                    <div class="column-img">
+                        <img src="Imagen9.png" style="height: 400px; object-fit: cover;">
                     </div>
                 </div>
             </section>
@@ -133,10 +169,17 @@
                 <div class="container-flex">
                     <div class="column">
                         <ul>
-                            <li><strong>Acreditaciones:</strong> Programas con estándares internacionales.</li>
-                            <li><strong>Infraestructura:</strong> Laboratorios con tecnología de vanguardia.</li>
-                            <li><strong>Cuerpo Docente:</strong> Especialistas con amplia trayectoria en la industria.</li>
+                            <li>Certificaciones Internacionales.</li>
+                            <li>Alianzas con empresas líderes.</li>
+                            <li>Metodología "Aprender Haciendo".</li>
                         </ul>
+                    </div>
+                    <div class="column-img">
+                        <div class="grid-images">
+                            <img src="Imagen10.png">
+                            <img src="Imagen11.png">
+                            <img src="Imagen12.png" style="grid-column: span 2; height: 200px;">
+                        </div>
                     </div>
                 </div>
             </section>
@@ -146,37 +189,68 @@
                 <div class="container-flex">
                     <div class="column">
                         <ul>
-                            <li><strong>Innovation Academy for Women:</strong> Participación en Querétaro, México.</li>
-                            <li><strong>CONESCAPAN XLI:</strong> Representación en la Convención de Estudiantes CONESCAPAN 2025.</li>
-                            <li><strong>Intercambios:</strong> Alianzas con universidades de la región y el mundo.</li>
+                            <li><strong>México:</strong> Innovation Academy for Women.</li>
+                            <li><strong>Panamá:</strong> CONESCAPAN XLI.</li>
+                            <li>Programas de movilidad global.</li>
                         </ul>
+                    </div>
+                    <div class="column-img">
+                        <div class="grid-images">
+                            <img src="Imagen13.png">
+                            <img src="Imagen14.png">
+                            <img src="Imagen15.png" style="grid-column: span 2; height: 200px;">
+                        </div>
                     </div>
                 </div>
             </section>
 
             <section>
-                <h2>Laboratorios e Investigación</h2>
+                <h2>Laboratorios</h2>
                 <div class="container-flex">
                     <div class="column">
-                        <ul>
-                            <li>Prácticas reales en entornos simulados de industria.</li>
-                            <li>Proyectos en el <strong>Instituto de Investigación e Innovación en Electrónica</strong>.</li>
-                            <li>Desarrollo de patentes y soluciones tecnológicas locales.</li>
-                        </ul>
+                        <p>Infraestructura moderna para prácticas especializadas.</p>
+                        <img src="Imagen16.png" style="margin-top: 15px;">
+                    </div>
+                    <div class="column-img" style="flex-direction: column; gap: 10px;">
+                        <img src="Imagen17.png">
+                        <img src="Imagen18.png">
                     </div>
                 </div>
             </section>
 
             <section>
-                <h1>¡Únete a la Escuela de Electrónica!</h1>
-                <p>Formamos profesionales líderes para la industria del futuro.</p>
-                <h2 style="color: var(--udb-amarillo)">¿Tienen alguna pregunta?</h2>
+                <h2>Investigación</h2>
+                <div class="container-flex">
+                    <div class="column">
+                        <p>Proyectos de innovación en el Instituto de Investigación en Electrónica.</p>
+                        <img src="Imagen19.png" style="margin-top: 15px;">
+                    </div>
+                    <div class="column-img" style="flex-direction: column; gap: 10px;">
+                        <img src="Imagen20.png">
+                        <img src="Imagen21.png">
+                    </div>
+                </div>
             </section>
+
+            <section>
+                <h2>¡Inicia tu futuro hoy!</h2>
+                <div class="container-flex">
+                    <div class="column-img">
+                        <img src="Imagen22.png">
+                    </div>
+                    <div class="column-img">
+                        <img src="Imagen23.png">
+                    </div>
+                </div>
+                <h3 style="color: var(--udb-amarillo); margin-top: 20px;">Escuela de Electrónica UDB</h3>
+            </section>
+
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js"></script> 
+    
     <script>
         window.Reveal = Reveal; 
         Reveal.initialize({ 
@@ -185,12 +259,23 @@
             progress: true,
             center: true,
             transition: 'slide',
-            slideNumber: 'c/t' 
+            slideNumber: 'c/t'
         });
+
+        // Simulación de interacción con José para pruebas visuales
+        // Puedes llamar a estas funciones desde tu app.js
+        function joseEscucha(estado) {
+            const avatar = document.getElementById('jose-avatar');
+            estado ? avatar.classList.add('jose-escuchando') : avatar.classList.remove('jose-escuchando');
+        }
+
+        function joseHabla(estado) {
+            const avatar = document.getElementById('jose-avatar');
+            estado ? avatar.classList.add('jose-hablando') : avatar.classList.remove('jose-hablando');
+        }
     </script>
 </body>
 </html>
-
 
 
 
